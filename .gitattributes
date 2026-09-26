@@ -1,0 +1,26 @@
+# Normalise line endings so the repo behaves the same on Windows, macOS and CI.
+* text=auto eol=lf
+
+# Files that must stay LF
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.prisma text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.zip binary

@@ -1,0 +1,360 @@
+// ---------------------------------------------------------------------------
+// Helping Station DEU — data model
+//
+// Design notes
+//  * Every status/role is stored as a validated `String` (see
+//    `src/lib/constants.ts`) instead of a database enum. The allowed values are
+//    enforced by Zod at the application boundary, which keeps migrations cheap
+//    and lets an organiser add a value without a lock-taking ALTER TYPE.
+//  * An event owns registrations, prizes and at most one *official* draw.
+//  * A draw never mutates a completed result. Corrections are appended as new
+//    records (DrawCorrection) so the original history stays intact.
+//  * `isDemo` marks every row created by demo seed data so it can never be
+//    mixed with production data.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Accounts
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  name         String
+  studentId    String
+  department   String
+  phone        String?
+  /// STUDENT | ADMIN
+  role         String  @default("STUDENT")
+  passwordHash String?
+  /// Hash of the one-time claim code handed to a student who registered
+  /// without setting a password. Allows passwordless first sign-in.
+  claimCodeHash  String?
+  claimCodeUsedAt DateTime?
+  lastLoginAt  DateTime?
+  isActive     Boolean @default(true)
+  isDemo       Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  registrations Registration[]
+  createdEvents  Event[]       @relation("EventCreator")
+  initiatedDraws Draw[]         @relation("DrawInitiator")
+  auditLogs      AuditLog[]
+  corrections    DrawCorrection[]
+  notifications  Notification[]
+
+  @@index([role])
+  @@index([studentId])
+}
+
+/// Sign-in attempts that were rejected because the credential was wrong.
+/// Used for admin brute-force protection.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  identifier String
+  ipHash     String?
+  success    Boolean
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+model Event {
+  id                   String  @id @default(cuid())
+  slug                 String  @unique
+  name                 String
+  tagline              String?
+  description          String
+  locationName         String
+  locationAddress      String?
+  startAt              DateTime
+  endAt                DateTime
+  registrationDeadline DateTime
+  /// DRAFT | PUBLISHED | REGISTRATION_CLOSED | IN_PROGRESS | COMPLETED | ARCHIVED
+  status               String  @default("DRAFT")
+  capacity             Int?
+  organizerName        String
+  organizerDepartment   String?
+  organizerContact     String?
+  /// JSON blob validated by `eventSettingsSchema` (see src/lib/event-settings.ts)
+  settings             Json?
+  isDemo               Boolean @default(false)
+  createdById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  createdBy      User?         @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  registrations Registration[]
+  prizes         Prize[]
+  draws          Draw[]
+  winners        Winner[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([status, isDemo])
+  @@index([startAt])
+}
+
+// ---------------------------------------------------------------------------
+// Registration
+// ---------------------------------------------------------------------------
+
+model Registration {
+  id        String @id @default(cuid())
+  eventId   String
+  userId    String
+  /// Human friendly, unique inside the event, e.g. HS-0247 (HS-DEMO-001 in demo mode)
+  entryNumber String
+  /// CONFIRMED | CANCELLED
+  registrationStatus String  @default("CONFIRMED")
+  /// REGISTERED | PARTICIPATED | NO_SHOW | EXCUSED
+  participationStatus String @default("REGISTERED")
+  /// PENDING | ELIGIBLE | INELIGIBLE
+  drawEligibility     String  @default("PENDING")
+  eligibilityReason   String?
+  verifiedAt          DateTime?
+  verifiedById        String?
+  volunteerRole       String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  // Timestamps that double as consent receipts.
+  rulesAcceptedAt  DateTime
+  dataConsentAt    DateTime
+  /// Separate, explicit consent for the lucky draw (never merged with the
+  /// participation or data-processing consents).
+  drawConsentAt    DateTime?
+  /// Opt-in for having a masked name shown on the public winners page.
+  publicDisplayConsent Boolean @default(false)
+  /// Consent to be contacted about a prize claim.
+  contactConsentAt DateTime?
+
+  /// SHA-256 of the submitting IP — used for rate limiting without storing raw IPs.
+  ipHash      String?
+  isDemo      Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  winners        Winner[]
+  poolEntries    DrawPoolEntry[]
+
+  /// One registration per student per event.
+  @@unique([userId, eventId])
+  /// Entry numbers are unique inside an event.
+  @@unique([eventId, entryNumber])
+  @@index([eventId, drawEligibility])
+  @@index([eventId, participationStatus])
+}
+
+// ---------------------------------------------------------------------------
+// Prizes
+// ---------------------------------------------------------------------------
+
+model Prize {
+  id          String  @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  quantity    Int     @default(1)
+  /// Presentation order (1 = grand prize)
+  order       Int
+  /// Optional organiser instructions shown to winners.
+  claimInstructions String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  winners Winner[]
+
+  @@unique([eventId, order])
+}
+
+// ---------------------------------------------------------------------------
+// Lucky draw
+// ---------------------------------------------------------------------------
+
+model Draw {
+  id        String @id @default(cuid())
+  eventId   String
+  /// LOCKED | IN_PROGRESS | COMPLETED | CANCELLED
+  status    String @default("LOCKED")
+  /// OFFICIAL = the one recorded draw for the event. TEST = rehearsal run.
+  official  Boolean @default(false)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  initiatedById String
+
+  /// Size + digest of the frozen participant pool (see DrawPoolEntry).
+  poolLockedAt        DateTime?
+  eligibleParticipantCount Int?
+  poolSnapshotHash    String?
+  /// SHA-256 of the server entropy digest, published after the draw so the
+  /// selection can be independently re-derived and audited.
+  selectionDigest     String?
+  /// Raw CSPRNG entropy (hex). Stays private while the draw is in progress and
+  /// is published on completion so anybody can recompute the permutation.
+  selectionEntropy    String?
+  totalPrizeSlots     Int?
+  /// Rehearsal runs only (official = false): masked preview winners so an
+  /// organiser can rehearse the animation without recording real winners.
+  previewResult       Json?
+  /// Guards against a second run of the same draw.
+  idempotencyKey      String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  initiatedBy User            @relation("DrawInitiator", fields: [initiatedById], references: [id])
+  poolEntries DrawPoolEntry[]
+  winners     Winner[]
+  corrections DrawCorrection[]
+  auditLogs   AuditLog[]
+
+  /// At most one official draw and one rehearsal draw per event.
+  @@unique([eventId, official])
+  @@index([eventId, status])
+}
+
+/// Immutable snapshot of the eligible participants, frozen when the draw locks.
+model DrawPoolEntry {
+  id             String @id @default(cuid())
+  drawId         String
+  registrationId String
+  entryNumber    String
+  /// 1-based position in the frozen, entry-number ordered list.
+  sequence       Int
+  isWinner       Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  draw         Draw         @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([drawId, registrationId])
+  @@unique([drawId, sequence])
+  @@index([drawId, isWinner])
+}
+
+model Winner {
+  id             String @id @default(cuid())
+  drawId         String
+  eventId        String
+  prizeId        String
+  registrationId String
+  /// Snapshotted at selection time so history survives later edits.
+  entryNumber    String
+  displayName    String
+  department     String?
+  selectedAt     DateTime @default(now())
+  /// PENDING | NOTIFIED | CLAIMED | UNCLAIMED | REVOKED
+  claimStatus    String   @default("PENDING")
+  notifiedAt     DateTime?
+  claimedAt      DateTime?
+  revokedAt      DateTime?
+  revokedReason  String?
+  isDemo         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  draw         Draw         @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  prize        Prize        @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  corrections  DrawCorrection[]
+
+  /// A participant can never appear twice inside one draw.
+  @@unique([drawId, registrationId])
+  @@index([eventId, selectedAt])
+}
+
+/// Append-only corrections. Completed draws are never overwritten.
+model DrawCorrection {
+  id             String @id @default(cuid())
+  drawId         String
+  winnerId       String?
+  registrationId String?
+  /// REVOKE_WINNER | ANNOTATE | REISSUE
+  type           String
+  reason         String
+  details        String?
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  draw      Draw    @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  winner    Winner? @relation(fields: [winnerId], references: [id], onDelete: SetNull)
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@index([drawId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Audit & notifications
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  eventId    String?
+  drawId     String?
+  adminId    String?
+  /// Dotted action name, e.g. `registration.participation_verified`
+  action     String
+  targetType String?
+  targetId   String?
+  /// Structured, non-sensitive metadata.
+  metadata   Json?
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  draw  Draw?  @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  admin User?  @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt])
+  @@index([drawId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// Notification outbox. Nothing is sent automatically: a row is only dispatched
+/// by an operator who has configured a consent-compliant channel.
+model Notification {
+  id             String  @id @default(cuid())
+  eventId        String?
+  userId         String?
+  registrationId String?
+  /// REGISTRATION_CONFIRMED | EVENT_REMINDER | PARTICIPATION_CONFIRMED | WINNER_NOTIFIED | PRIZE_CLAIM_INSTRUCTIONS
+  type           String
+  channel        String  @default("EMAIL")
+  recipient      String
+  subject        String
+  body           String
+  /// QUEUED | SENT | FAILED | SKIPPED
+  status         String  @default("QUEUED")
+  sendAfter      DateTime @default(now())
+  sentAt         DateTime?
+  error          String?
+  createdAt      DateTime @default(now())
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, sendAfter])
+  @@index([eventId, type])
+}

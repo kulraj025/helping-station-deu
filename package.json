@@ -1,0 +1,59 @@
+{
+  "name": "helping-station-deu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Helping Station DEU — Social & Environmental Awareness & Volunteer Action Program with a transparent, auditable lucky draw.",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:dev": "node scripts/dev-db.mjs",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:seed": "node --experimental-strip-types prisma/seed.ts",
+    "setup": "node scripts/setup.mjs"
+  },
+  "prisma": {
+    "seed": "node --experimental-strip-types prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "bcryptjs": "3.0.3",
+    "clsx": "2.1.1",
+    "lucide-react": "0.544.0",
+    "next": "15.5.26",
+    "next-auth": "5.0.0-beta.32",
+    "pg": "8.16.3",
+    "qrcode": "1.5.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "server-only": "0.0.1",
+    "tailwind-merge": "3.3.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.18.14",
+    "@types/pg": "8.15.6",
+    "@types/qrcode": "1.5.5",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.1",
+    "eslint": "9.38.0",
+    "eslint-config-next": "15.5.26",
+    "prisma": "7.10.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

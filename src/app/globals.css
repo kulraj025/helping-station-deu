@@ -1,0 +1,413 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Helping Station DEU — design system
+   Environmental palette: deep green primary, sky + gold accents, soft canvas.
+   ========================================================================== */
+
+@theme {
+  /* Brand — greens */
+  --color-leaf-50: #f0fdf4;
+  --color-leaf-100: #dcfce7;
+  --color-leaf-200: #bbf7d0;
+  --color-leaf-300: #86efac;
+  --color-leaf-400: #4ade80;
+  --color-leaf-500: #22c55e;
+  --color-leaf-600: #16a34a;
+  --color-leaf-700: #15803d;
+  --color-leaf-800: #166534;
+  --color-leaf-900: #14532d;
+  --color-leaf-950: #052e16;
+
+  /* Accent — sky */
+  --color-azure-50: #f0f9ff;
+  --color-azure-100: #e0f2fe;
+  --color-azure-200: #bae6fd;
+  --color-azure-300: #7dd3fc;
+  --color-azure-400: #38bdf8;
+  --color-azure-500: #0284c7;
+  --color-azure-600: #0369a1;
+
+  /* Accent — gold */
+  --color-gold-300: #fcd34d;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+
+  --color-canvas: #f8fafc;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-sora), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(22 101 52 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(15 23 42 / 0.04), 0 18px 40px -18px rgb(22 101 52 / 0.28);
+  --shadow-glow: 0 0 0 1px rgb(22 101 52 / 0.08), 0 24px 60px -24px rgb(22 101 52 / 0.35);
+
+  --radius-4xl: 2rem;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite;
+  --animate-drift: drift 18s linear infinite;
+  --animate-pulse-ring: pulse-ring 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-rise: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-sheen: sheen 3.2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) rotate(3deg);
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(24px, -18px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgb(34 197 94 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(-20%);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(20%);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0), 108vh, 0) rotate(var(--spin, 720deg));
+    opacity: 0;
+  }
+}
+
+@keyframes flash-win {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    border-color: var(--color-slate-200);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-slate-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-leaf-600);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  ::selection {
+    background-color: var(--color-leaf-200);
+    color: var(--color-leaf-950);
+  }
+
+  /* Native controls inherit the design language. */
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .container-page {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 80rem;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Soft environmental background wash used on most public pages. */
+  .bg-canopy {
+    background-image:
+      radial-gradient(60rem 30rem at 8% -10%, rgb(220 252 231 / 0.9), transparent 60%),
+      radial-gradient(45rem 26rem at 100% 0%, rgb(224 242 254 / 0.75), transparent 55%),
+      radial-gradient(40rem 24rem at 50% 110%, rgb(187 247 208 / 0.55), transparent 60%);
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(rgb(22 101 52 / 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .bg-grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(22 101 52 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(22 101 52 / 0.07) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .card {
+    background-color: #fff;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1.25rem;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .card-glass {
+    background-color: rgb(255 255 255 / 0.78);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgb(255 255 255 / 0.7);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-lift);
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(120deg, var(--color-leaf-800), var(--color-leaf-600) 45%, var(--color-azure-500));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .ring-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      rgb(226 232 240 / 0.6) 25%,
+      rgb(241 245 249 / 0.9) 37%,
+      rgb(226 232 240 / 0.6) 63%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  /* Scroll reveal — opt in with data-reveal, toggled by <Reveal />. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal="left"] {
+    transform: translate3d(-32px, 0, 0);
+  }
+
+  [data-reveal="right"] {
+    transform: translate3d(32px, 0, 0);
+  }
+
+  [data-reveal="zoom"] {
+    transform: scale(0.94);
+  }
+
+  [data-reveal][data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .marquee-mask {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+
+  .confetti-piece {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    animation: confetti-fall var(--duration, 4s) linear forwards;
+    animation-delay: var(--delay, 0s);
+    will-change: transform, opacity;
+  }
+
+  .display-huge {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion: honour the OS preference everywhere.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Print: participation card + poster.
+   -------------------------------------------------------------------------- */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .print-card {
+    box-shadow: none !important;
+    border: 2px solid var(--color-leaf-700) !important;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}

@@ -1,0 +1,76 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# --- secrets: never commit real credentials -------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+secrets.json
+service-account*.json
+id_rsa
+id_ed25519
+.npmrc.local
+.netrc
+credentials.json
+
+# database dumps / local data (prisma migrations are .sql and ARE committed)
+*.dump
+*.backup
+pgdata/
+.pgdata/
+*.sqlite
+*.sqlite3
+uploads/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# prisma local artefacts
+prisma/*.db
+prisma/*.db-journal
+.prisma/
+
+# generated
+src/generated/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+coverage/
+.vitest/
+
+# temp / editor noise
+*.tmp
+*.bak
+*.orig
+*.rej
+.eslintcache
+tmp/
+temp/
+
+# editors / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# misc
+.vercel
+.turbo
+.pglite/
