@@ -118,9 +118,16 @@ async function main() {
 
   // --- live demo event -----------------------------------------------------
   const slug = "helping-station-deu-vol-1";
+  const liveEventDates = {
+    startAt: new Date("2026-09-28T09:00:00"),
+    endAt: new Date("2026-09-28T17:00:00"),
+    registrationDeadline: new Date("2026-09-28T00:00:00"),
+  };
   const liveEvent = await prisma.event.upsert({
     where: { slug },
-    update: {},
+    // Dates are included in the update so re-seeding a database that already
+    // has this event actually moves it to the new date.
+    update: liveEventDates,
     create: {
       slug,
       name: "Helping Station DEU",
@@ -129,9 +136,7 @@ async function main() {
         "A full-day student programme combining awareness sessions, creative teamwork, and hands-on volunteer action. Teams learn about local environmental and social issues, design their own awareness material, present it, and then put their ideas into practice on campus and in the community.",
       locationName: "Dong-Eui University",
       locationAddress: "Wonsan-ro, Buk-gu, Daegu, South Korea",
-      startAt: new Date(Date.now() + 12 * DAYS),
-      endAt: new Date(Date.now() + 12 * DAYS + 7 * HOURS),
-      registrationDeadline: new Date(Date.now() + 7 * DAYS),
+      ...liveEventDates,
       status: "PUBLISHED",
       capacity: 300,
       organizerName: "Helping Station DEU — Student Volunteer Team",
