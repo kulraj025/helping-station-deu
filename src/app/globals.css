@@ -300,26 +300,33 @@
     animation: var(--animate-shimmer);
   }
 
-  /* Scroll reveal — opt in with data-reveal, toggled by <Reveal />. */
+  /* Scroll reveal — opt in with data-reveal, toggled by <Reveal />.
+     The hidden state is deliberately gated behind `html.js` and an explicit
+     `data-visible="pending"`, so the only way content can be invisible is if
+     JavaScript both ran and then failed to reveal it. With no JavaScript the
+     page renders fully visible instead of blank. */
   [data-reveal] {
-    opacity: 0;
-    transform: translate3d(0, 26px, 0);
     transition:
       opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  .js [data-reveal][data-visible="pending"] {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
     will-change: opacity, transform;
   }
 
-  [data-reveal="left"] {
+  .js [data-reveal="left"][data-visible="pending"] {
     transform: translate3d(-32px, 0, 0);
   }
 
-  [data-reveal="right"] {
+  .js [data-reveal="right"][data-visible="pending"] {
     transform: translate3d(32px, 0, 0);
   }
 
-  [data-reveal="zoom"] {
+  .js [data-reveal="zoom"][data-visible="pending"] {
     transform: scale(0.94);
   }
 

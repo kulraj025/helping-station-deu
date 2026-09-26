@@ -40,6 +40,9 @@ export function cryptoRng(): Rng {
  * Deterministic generator seeded by hex entropy (HMAC-SHA256 counter mode).
  * Used so a published draw can be replayed and verified.
  */
+/** Upper bound, matching Node's own `crypto.randomInt`. */
+const MAX_RANGE = 2 ** 48 - 1;
+
 export function seededRng(entropyHex: string): Rng {
   const seed = Buffer.from(entropyHex, "hex");
   if (seed.length < 16) {
@@ -49,23 +52,48 @@ export function seededRng(entropyHex: string): Rng {
   let buffer = Buffer.alloc(0);
   let offset = 0;
 
-  const nextByte = (): number => {
-    if (offset >= buffer.length) {
-      buffer = createHmac("sha256", seed).update(String(counter++)).digest();
-      offset = 0;
+  /**
+   * Reads `count` bytes from the HMAC keystream, refilling blocks as needed.
+   * Requests are satisfied in order, so a sequence of reads of any widths
+   * consumes the same keystream bytes as one wide read would.
+   */
+  const nextBytes = (count: number): Buffer => {
+    const out = Buffer.alloc(count);
+    let written = 0;
+    while (written < count) {
+      if (offset >= buffer.length) {
+        buffer = createHmac("sha256", seed).update(String(counter++)).digest();
+        offset = 0;
+      }
+      const take = Math.min(count - written, buffer.length - offset);
+      buffer.copy(out, written, offset, offset + take);
+      offset += take;
+      written += take;
     }
-    return buffer[offset++] as number;
+    return out;
   };
 
   return (maxExclusive: number) => {
     if (!Number.isInteger(maxExclusive) || maxExclusive < 1) {
       throw new RangeError(`maxExclusive must be a positive integer, received ${maxExclusive}`);
     }
-    // Rejection sampling keeps the distribution exactly uniform.
-    const limit = Math.floor(256 / maxExclusive) * maxExclusive;
-    let value = nextByte();
-    while (value >= limit) value = nextByte();
-    return value % maxExclusive;
+    if (maxExclusive > MAX_RANGE) {
+      throw new RangeError(`maxExclusive must be at most ${MAX_RANGE}, received ${maxExclusive}`);
+    }
+    if (maxExclusive === 1) return 0;
+
+    // Rejection sampling keeps the distribution exactly uniform, for any range
+    // width. A pool larger than 256 candidates needs two bytes per draw, which
+    // is why this reads a byte *width* rather than a single byte: sampling
+    // `value % max` from one byte would have a limit of zero and never terminate.
+    const width = Math.max(1, Math.ceil(Math.log2(maxExclusive) / 8));
+    const range = 256 ** width;
+    const limit = range - (range % maxExclusive);
+
+    for (;;) {
+      const value = nextBytes(width).readUIntBE(0, width);
+      if (value < limit) return value % maxExclusive;
+    }
   };
 }
 

@@ -50,7 +50,7 @@ export function maskName(name: string): string {
   return `${maskFirst(first)} ${lastInitial(last)}`;
 }
 
-/** "20231234" -> "****1234"  (keeps the last 4 characters only) */
+/** "20231234" -> "***1234"  (keeps the last 4 characters only) */
 export function maskStudentId(studentId: string): string {
   const value = studentId.trim();
   if (value.length <= 4) return MASK;

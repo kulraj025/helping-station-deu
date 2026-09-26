@@ -11,7 +11,7 @@ import { env } from "./env";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient(): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: env.databaseUrl });
+  const adapter = new PrismaPg({ connectionString: env.databaseUrl, max: env.dbPoolMax });
   return new PrismaClient({
     adapter,
     log: env.isDevelopment ? ["warn", "error"] : ["error"],

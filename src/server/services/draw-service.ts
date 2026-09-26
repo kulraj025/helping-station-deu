@@ -297,7 +297,12 @@ export async function runDraw(options: {
     // --- 3. persist results ------------------------------------------------
     const registrations = await prisma.registration.findMany({
       where: { id: { in: result.assignments.map((a) => a.registrationId) } },
-      select: { id: true, entryNumber: true, name: true, user: { select: { name: true, department: true } }, publicDisplayConsent: true },
+      select: {
+        id: true,
+        entryNumber: true,
+        user: { select: { name: true, department: true } },
+        publicDisplayConsent: true,
+      },
     });
     const byId = new Map(registrations.map((row) => [row.id, row]));
 
@@ -524,6 +529,9 @@ export async function verifyDrawIntegrity(drawId: string) {
 
   return {
     drawId: draw.id,
+    // The event the draw belongs to. Callers that write an audit row need this:
+    // `AuditLog.eventId` is a foreign key to `Event.id`, not to `Draw.id`.
+    eventId: draw.eventId,
     commitMatches: verification.commitMatches,
     poolHashMatches: verification.snapshotMatchesHash === draw.poolSnapshotHash,
     winnersMatch: matches,

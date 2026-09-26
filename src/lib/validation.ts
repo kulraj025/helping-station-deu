@@ -16,7 +16,6 @@ import {
 
 /** Remove control characters, collapse whitespace, and cap the length. */
 export function sanitizeText(value: string, maxLength = 500): string {
-  // eslint-disable-next-line no-control-regex
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 

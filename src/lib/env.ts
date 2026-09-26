@@ -63,6 +63,12 @@ export const env = {
   databaseUrl:
     process.env.DATABASE_URL ??
     "postgresql://postgres:postgres@127.0.0.1:5433/helpingstation",
+  /**
+   * Maximum pooled connections. Keep this at 1 when using the bundled
+   * single-connection PGlite dev server (`npm run db:dev`); managed Postgres
+   * deployments should size it for their plan.
+   */
+  dbPoolMax: Math.max(1, int(process.env.DB_POOL_MAX, 10)),
 
   // Demo mode is force-disabled in production so demo credentials can never
   // reach a live event, no matter what the environment file says.

@@ -38,6 +38,10 @@ export type DrawStatus = (typeof DRAW_STATUSES)[number];
 export const CLAIM_STATUSES = ["PENDING", "NOTIFIED", "CLAIMED", "UNCLAIMED", "REVOKED"] as const;
 export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
 
+export function isClaimStatus(value: string): value is ClaimStatus {
+  return (CLAIM_STATUSES as readonly string[]).includes(value);
+}
+
 export const CORRECTION_TYPES = ["REVOKE_WINNER", "ANNOTATE", "REISSUE"] as const;
 export type CorrectionType = (typeof CORRECTION_TYPES)[number];
 
@@ -115,6 +119,45 @@ export const CLAIM_LABELS: Record<ClaimStatus, string> = {
   UNCLAIMED: "Not collected",
   REVOKED: "Revoked",
 };
+
+/**
+ * Human labels for the dotted audit action names.
+ *
+ * The stored names stay machine-readable; this is only for display, so the log
+ * reads as sentences rather than as identifiers.
+ */
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  "registration.created": "Registration created",
+  "registration.duplicate_blocked": "Duplicate registration blocked",
+  "registration.cancelled": "Registration cancelled",
+  "registration.participation_verified": "Attendance confirmed",
+  "registration.eligibility_changed": "Eligibility changed",
+  "registration.eligibility_bulk_changed": "Eligibility changed in bulk",
+  "event.created": "Event created",
+  "event.updated": "Event updated",
+  "event.status_changed": "Event status changed",
+  "prizes.configured": "Prize added",
+  "prize.updated": "Prize updated",
+  "prize.deleted": "Prize deleted",
+  "draw.pool_locked": "Participant pool locked",
+  "draw.started": "Draw started",
+  "draw.completed": "Draw completed",
+  "draw.integrity_verified": "Draw integrity verified",
+  "draw.failed": "Draw failed",
+  "draw.test_reset": "Rehearsal draw reset",
+  "winner.claim_updated": "Winner claim status updated",
+  "winner.revoked": "Winner revoked",
+  "winner.annotated": "Winner annotated",
+  "winner.notified": "Winner notification queued",
+  "report.exported": "Data exported",
+  "auth.admin_login": "Organiser signed in",
+  "event.qr_downloaded": "QR code downloaded",
+  "event.poster_downloaded": "Poster downloaded",
+};
+
+export function auditLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);

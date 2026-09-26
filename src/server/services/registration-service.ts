@@ -106,7 +106,7 @@ export async function registerStudent(
     if (existingUser) {
       const existingRegistration = await tx.registration.findUnique({
         where: { userId_eventId: { userId: existingUser.id, eventId: event.id } },
-        include: { user: { select: { passwordHash: true } } },
+        include: { user: { select: { passwordHash: true, claimCodeHash: true } } },
       });
       if (existingRegistration) {
         // Only reveal the entry number if the person can prove they own the
@@ -128,7 +128,7 @@ export async function registerStudent(
           status: "DUPLICATE" as const,
           entryNumber: existingRegistration.entryNumber,
           revealed,
-          canReveal: revealed || existingRegistration.claimCodeHash === null,
+          canReveal: revealed || existingRegistration.user.claimCodeHash === null,
         };
       }
     }
@@ -265,6 +265,13 @@ export async function getRegistrationsForUser(userId: string) {
           settings: true,
           isDemo: true,
         },
+      },
+      // A student may always see their own prizes, revoked or not — the history
+      // is part of the record they are entitled to.
+      winners: {
+        where: { claimStatus: { not: "REVOKED" } },
+        select: { id: true, claimStatus: true, selectedAt: true, prize: { select: { name: true } } },
+        orderBy: { selectedAt: "asc" },
       },
     },
   });

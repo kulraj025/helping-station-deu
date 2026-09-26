@@ -63,6 +63,7 @@ export const AUDIT_ACTIONS = {
   winnerRevoked: "winner.revoked",
   winnerAnnotated: "winner.annotated",
   winnerClaimUpdated: "winner.claim_updated",
+  winnerNotified: "winner.notified",
   exportGenerated: "report.exported",
   adminLogin: "auth.admin_login",
   qrDownloaded: "event.qr_downloaded",

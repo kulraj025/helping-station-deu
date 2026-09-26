@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Helping Station DEU">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#14532d"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <path d="M32 12c11 0 20 8.5 20 19.5S43 51 32 51 12 42.5 12 31.5 21 12 32 12z" fill="#dcfce7" opacity=".18"/>
+  <path d="M33 16c9 3 14 11 12 20-1.6 7-7 12-14 12-8 0-14-5.5-14-13 0-9 7-16 16-19z" fill="#bbf7d0"/>
+  <path d="M31 22c-6 6-8 13-5 20" stroke="#166534" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M30 33c3-1 6-1 9 1" stroke="#166534" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+</svg>

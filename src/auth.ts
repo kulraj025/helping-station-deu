@@ -182,8 +182,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (token.userId) {
+        const role = token.role;
         session.user.id = token.userId;
-        session.user.role = isRole(token.role ?? "") ? token.role : "STUDENT";
+        session.user.role = role && isRole(role) ? role : "STUDENT";
         session.user.department = token.department ?? "";
         session.user.studentId = token.studentId ?? "";
       }

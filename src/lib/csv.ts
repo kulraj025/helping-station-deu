@@ -44,14 +44,25 @@ export function csvResponseHeaders(filename: string): Record<string, string> {
   };
 }
 
+/**
+ * A filename that is safe to embed in a Content-Disposition header.
+ *
+ * Everything except word characters, single dots and spaces is dropped, runs
+ * of dots collapse (so `../../etc/passwd` cannot leave a `....` behind), and the
+ * result is never empty — an empty `filename` leaves the browser to invent one,
+ * which is a worse outcome than a plain fallback.
+ */
 export function safeFilename(value: string): string {
-  return value
+  const cleaned = value
     .normalize("NFKD")
     .replace(/[^\w\s.-]+/g, "")
+    .replace(/\.{2,}/g, ".")
     .trim()
     .replace(/\s+/g, "-")
     .slice(0, 80)
+    .replace(/^[-.]+|[-.]+$/g, "")
     .toLowerCase();
+  return cleaned || "export";
 }
 
 /** Default participant export columns (redacted). */

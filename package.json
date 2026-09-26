@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,7 +20,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed": "node --experimental-strip-types prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts",
     "setup": "node scripts/setup.mjs"
   },
   "prisma": {
@@ -43,16 +43,20 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "22.18.14",
+    "@types/node": "22.20.4",
     "@types/pg": "8.15.6",
     "@types/qrcode": "1.5.5",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.1",
+    "dotenv": "17.2.3",
     "eslint": "9.38.0",
     "eslint-config-next": "15.5.26",
     "prisma": "7.10.0",
     "tailwindcss": "4.3.3",
+    "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
   }
