@@ -5,6 +5,21 @@
  * the page fast, on-brand, and free of third-party licensing questions.
  */
 
+/**
+ * Clamps a computed coordinate to hundredths.
+ *
+ * `Math.cos` and `Math.sin` are transcendental functions, which IEEE-754 does
+ * not require to be correctly rounded, so Node's V8 and the browser's V8 can
+ * return values that differ in their last bit. Fed straight into an SVG
+ * attribute that becomes a real hydration mismatch: the server writes
+ * `cx="90.83657091333114"` while the client writes `90.83657091333117`.
+ * Rounding to two decimals is far below a visible pixel and absorbs the
+ * difference, so both sides serialise to the same string.
+ */
+function fixed(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export function HeroArt({ className }: { className?: string }) {
   return (
     <svg
@@ -42,8 +57,8 @@ export function HeroArt({ className }: { className?: string }) {
           return (
             <circle
               key={i}
-              cx={260 + Math.cos(angle) * 226}
-              cy={268 + Math.sin(angle) * 226}
+              cx={fixed(260 + Math.cos(angle) * 226)}
+              cy={fixed(268 + Math.sin(angle) * 226)}
               r={i % 3 === 0 ? 4 : 2.2}
               fill="#16a34a"
               opacity=".35"

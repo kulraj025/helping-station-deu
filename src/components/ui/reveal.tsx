@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * Scroll reveal wrapper.
- *
- * Uses IntersectionObserver and respects `prefers-reduced-motion` (the CSS
- * already forces the final state, this only avoids the observer cost).
- */
 /**
  * How long to wait for IntersectionObserver before revealing anyway.
  *
@@ -19,6 +13,18 @@ import { cn } from "@/lib/utils";
  * is the backstop that makes the animation strictly optional.
  */
 const REVEAL_BACKSTOP_MS = 1500;
+
+/**
+ * Scroll reveal wrapper.
+ *
+ * Uses IntersectionObserver and respects `prefers-reduced-motion` (the CSS
+ * already forces the final state, this only avoids the observer cost).
+ *
+ * The server and the first client render both emit `data-visible="pending"`,
+ * so the two agree and hydration is clean. Only the effect flips it to
+ * `"true"`, which is why the attribute is React state rather than a direct
+ * `dataset` write.
+ */
 
 export function Reveal({
   children,
@@ -37,22 +43,21 @@ export function Reveal({
   as?: "div" | "section" | "li" | "article" | "span";
 }) {
   const ref = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node || from === "none") return;
 
-    // Marks the element as owned by JavaScript, which is what arms the hidden
-    // state in CSS. Without this attribute the element is simply visible.
-    const reveal = () => {
-      node.dataset.visible = "true";
-    };
-
+    // `data-visible` is rendered by React from state, never written straight to
+    // the DOM. Mutating the node behind React's back races hydration: if the
+    // attribute changes before React hydrates this subtree, React finds "true"
+    // where it expects "pending" and reports a hydration mismatch.
     if (
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       typeof IntersectionObserver === "undefined"
     ) {
-      reveal();
+      setVisible(true);
       return;
     }
 
@@ -60,7 +65,7 @@ export function Reveal({
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            reveal();
+            setVisible(true);
             observer.unobserve(entry.target);
           }
         }
@@ -71,7 +76,7 @@ export function Reveal({
 
     const backstop = window.setTimeout(() => {
       observer.disconnect();
-      reveal();
+      setVisible(true);
     }, REVEAL_BACKSTOP_MS);
 
     return () => {
@@ -85,7 +90,7 @@ export function Reveal({
       // @ts-expect-error -- generic element ref
       ref={ref}
       data-reveal={from === "none" ? undefined : from}
-      data-visible={from === "none" ? undefined : "pending"}
+      data-visible={from === "none" ? undefined : visible ? "true" : "pending"}
       id={id}
       style={{ "--reveal-delay": `${delay}ms` } as React.CSSProperties}
       className={cn(className)}
@@ -116,7 +121,6 @@ export function CountUp({
       node.textContent = `${to}${suffix}`;
       return;
     }
-    let frame = 0;
     let raf = 0;
     const observer = new IntersectionObserver((entries) => {
       if (!entries[0]?.isIntersecting) return;
@@ -126,9 +130,13 @@ export function CountUp({
         const progress = Math.min(1, (now - start) / duration);
         // easeOutCubic
         const eased = 1 - Math.pow(1 - progress, 3);
+        // Written straight to the text node rather than through state: this
+        // updates every frame, and re-rendering the tree 60 times a second to
+        // change one number would be the more expensive mistake. It also
+        // cannot desync hydration, because the server and the first client
+        // render both emit `0`.
         node.textContent = `${Math.round(to * eased)}${suffix}`;
         if (progress < 1) raf = requestAnimationFrame(tick);
-        frame = window.setTimeout(() => {}, 0);
       };
       raf = requestAnimationFrame(tick);
     });
@@ -136,7 +144,6 @@ export function CountUp({
     return () => {
       observer.disconnect();
       cancelAnimationFrame(raf);
-      clearTimeout(frame);
     };
   }, [to, duration, suffix]);
 

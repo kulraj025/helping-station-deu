@@ -59,20 +59,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getCurrentUser();
 
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable}`}>
-      <head>
-        {/*
-          Scroll-reveal only hides content once JavaScript has confirmed it will
-          reveal it again, which it signals with this class. Setting it inline
-          and first means a visitor without JavaScript gets the full page
-          rather than a page of invisible sections.
-        */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `document.documentElement.classList.add("js")`,
-          }}
-        />
-      </head>
+    // `data-scroll-behavior` is how Next.js is told we handle smooth scrolling
+    // ourselves, so it stops patching it during route transitions.
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${inter.variable} ${sora.variable}`}
+    >
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main"
