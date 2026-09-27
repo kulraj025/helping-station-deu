@@ -1,0 +1,26 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/health", "destination": "/api/health" }
+  ]
+}
