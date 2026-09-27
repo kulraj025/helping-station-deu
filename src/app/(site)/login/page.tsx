@@ -53,6 +53,7 @@ export default async function LoginPage({
             callbackUrl={callbackUrl}
             reason={reason}
             googleEnabled={googleEnabled}
+            allowedDomain={env.googleAllowedDomain}
             initialError={oauthError}
           />
         </Reveal>

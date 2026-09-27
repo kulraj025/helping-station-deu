@@ -19,6 +19,8 @@ export interface LoginFormProps {
    *  component, and non-`NEXT_PUBLIC_` variables are stripped from the browser
    *  bundle, which would drop the button on hydration. */
   googleEnabled?: boolean;
+  /** Email domain Google sign-in is restricted to, or "" when anyone may sign in. */
+  allowedDomain?: string;
   /** Error code handed over from the `?error=` query string. */
   initialError?: string;
 }
@@ -29,13 +31,21 @@ const messages: Record<string, string> = {
   rate_limited: "Too many attempts. Wait a few minutes and try again.",
   OAuthEmailMissing:
     "That account did not share an e-mail address. Grant e-mail access and try again.",
-  OAuthDomainNotAllowed: "Only @deu.ac.kr accounts can sign in here.",
+  OAuthDomainNotAllowed: "That e-mail domain cannot sign in here.",
 };
+
+/** The domain notice varies with configuration, so it is built per-render. */
+function domainNotAllowedMessage(allowedDomain: string) {
+  return allowedDomain
+    ? `Only ${allowedDomain} accounts can sign in here.`
+    : "That account cannot sign in here.";
+}
 
 export function LoginForm({
   callbackUrl = "/account",
   reason,
   googleEnabled = false,
+  allowedDomain = "",
   initialError,
 }: LoginFormProps) {
   const router = useRouter();
@@ -43,7 +53,11 @@ export function LoginForm({
   const [mode, setMode] = useState<Mode>("student");
   const [useClaimCode, setUseClaimCode] = useState(false);
   const [error, setError] = useState<string | null>(
-    initialError ? (messages[initialError] ?? null) : null,
+    initialError === "OAuthDomainNotAllowed"
+      ? domainNotAllowedMessage(allowedDomain)
+      : initialError
+        ? (messages[initialError] ?? null)
+        : null,
   );
   const [pending, startTransition] = useTransition();
 
@@ -109,13 +123,19 @@ export function LoginForm({
 
             <p className="flex items-center gap-3 pt-1 text-xs font-semibold text-slate-400">
               <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
-              or use your university account
+              or use your own account
               <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
             </p>
-            <p className="text-center text-xs text-slate-500">
-              Google sign-in is limited to{" "}
-              <span className="font-semibold text-slate-600">@deu.ac.kr</span> addresses.
-            </p>
+            {allowedDomain ? (
+              <p className="text-center text-xs text-slate-500">
+                Google sign-in is limited to{" "}
+                <span className="font-semibold text-slate-600">{allowedDomain}</span> addresses.
+              </p>
+            ) : (
+              <p className="text-center text-xs text-slate-500">
+                Any Google account can sign in. You can fill in your department later.
+              </p>
+            )}
           </div>
         ) : null}
 

@@ -131,7 +131,7 @@ In order, because each step depends on the previous one:
 1. `/` loads. A missing event shows "No event is open for registration", which is correct for an
    empty database and not an error.
 2. `/login` → Student tab → the Google button appears.
-3. Sign in with Google using a `@deu.ac.kr` address. You land on `/account`.
+3. Sign in with Google. You land on `/account`.
 4. `/admin` is reachable with the organiser account.
 5. `/admin/settings` → the readiness panel is empty. Every line there is a real problem.
 

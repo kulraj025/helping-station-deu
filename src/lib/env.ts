@@ -86,6 +86,16 @@ export const env = {
   // Google OAuth
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  /**
+   * Optional. When set, Google sign-in is restricted to addresses ending in
+   * this suffix. When empty, any Google account may sign in and self-register.
+   * Normalised to a leading "@" so both `deu.ac.kr` and `@deu.ac.kr` work.
+   */
+  googleAllowedDomain: (() => {
+    const raw = (process.env.GOOGLE_ALLOWED_DOMAIN ?? "").trim().toLowerCase();
+    if (!raw) return "";
+    return raw.startsWith("@") ? raw : `@${raw}`;
+  })(),
 
   warnings,
 } as const;
@@ -98,3 +108,6 @@ export const isDistributedRateLimit = () =>
   env.upstashRestUrl.length > 0 && env.upstashRestToken.length > 0;
 export const isGoogleEnabled = () =>
   env.googleClientId.length > 0 && env.googleClientSecret.length > 0;
+/** True when a domain restriction is configured and the address fails it. */
+export const isEmailDomainAllowed = (email: string) =>
+  !env.googleAllowedDomain || email.toLowerCase().endsWith(env.googleAllowedDomain);

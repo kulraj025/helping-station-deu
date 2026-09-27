@@ -260,6 +260,7 @@ Change them before using this for anything real. The seed is idempotent, so it c
 | `AUTH_TRUST_HOST` | no | `true` | Required behind some proxies |
 | `AUTH_MAX_AGE` | no | `43200` | Session lifetime in seconds |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | — | Both needed to enable Google sign-in |
+| `GOOGLE_ALLOWED_DOMAIN` | no | empty | Restrict Google sign-in to one domain, e.g. `deu.ac.kr`. Empty means anyone may sign in. |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | no | — | Both needed to enable the captcha |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | no | — | Both needed for a shared rate limit |
 | `NOTIFICATIONS_ENABLED` | no | `false` | Records notification rows; delivery is not wired up |
@@ -279,7 +280,7 @@ Students can authenticate in three ways. Organisers only ever use e-mail and pas
 | --- | --- | --- |
 | Password | an account row | The default. Created on first registration. |
 | Claim code | an account row + the one-time code | Shown once at registration, for people who lose the password. |
-| Google | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Any `@deu.ac.kr` address. |
+| Google | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Any Google account, unless `GOOGLE_ALLOWED_DOMAIN` is set. |
 
 ### How the OAuth buttons behave
 
@@ -295,8 +296,14 @@ Students can authenticate in three ways. Organisers only ever use e-mail and pas
   `department: "Unknown"`. An organiser fills in the real department later from
   `/admin/participants`. The Google identity is stored as the primary key, so re-linking an
   existing e-mail is not attempted and cannot be hijacked by matching on a provider ID.
-- Any address outside `@deu.ac.kr` is rejected before a row is written, and the user is sent back
-  to `/login` with an explanatory message rather than a bare OAuth error blob.
+- Sign-in is open to **any Google account** by default. Set `GOOGLE_ALLOWED_DOMAIN` to a domain such
+  as `deu.ac.kr` to restrict it; anyone outside is then rejected before a row is written and sent
+  back to `/login` with an explanatory message rather than a bare OAuth error blob. You can close
+  registration after an event by setting that one variable and redeploying — no code change.
+- For other people to complete sign-in at all, the Google consent screen must be set to **In
+  production**. While it is in **Testing**, Google only allows the accounts listed under Test users
+  (maximum 100), and everyone else gets `access_denied`. See
+  [`docs/AUTH.md`](docs/AUTH.md#who-is-allowed-to-sign-in).
 
 ### Setting up Google
 
@@ -519,10 +526,11 @@ migration that will be forgotten.
 
 - **The organiser is not seeded into production.** Create the first admin by hand; see
   [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). `/admin` is unreachable until one exists.
-- **Google sign-in is restricted to `@deu.ac.kr`.** Anyone else is refused before a row is written.
-  This is deliberate; widening it means changing `ALLOWED_EMAIL_DOMAIN` in `src/auth.ts`.
-- **First sign-in creates a placeholder profile.** Google provides a name and e-mail but not a
-  student ID or department, so those are filled in by an organiser afterwards.
+- **Google sign-in is open to anyone by default.** With `GOOGLE_ALLOWED_DOMAIN` empty, any Google
+  account can register itself as a student. That is the intended behaviour for public events; set
+  the variable to lock it down afterwards.
+- **OAuth accounts arrive with placeholder details.** Google supplies a name and an e-mail, but not
+  a student ID or a department, so an organiser fills those in afterwards.
 - **A completed draw cannot be edited.** Corrections are recorded as new `DrawCorrection` rows
   rather than by mutating the result. That is the point, but it does mean corrections are a
   multi-step operation.

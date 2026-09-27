@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { env } from "@/lib/env";
+import { env, isEmailDomainAllowed } from "@/lib/env";
 import { LIMITS, hashIdentifier, rateLimit } from "@/lib/rate-limit";
 import { getClientIpHash } from "@/lib/http";
 import { adminLoginSchema, claimCodeLoginSchema, studentLoginSchema } from "@/lib/validation";
@@ -191,9 +191,6 @@ const googleProvider = Google({
 /** OAuth providers that may provision a STUDENT account on first sign-in. */
 const OAUTH_STUDENT_PROVIDERS = new Set(["google"]);
 
-/** Only university accounts may self-register through OAuth. */
-const ALLOWED_EMAIL_DOMAIN = "@deu.ac.kr";
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: env.authSecret,
   trustHost: env.authTrustHost,
@@ -215,7 +212,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!email) {
         return `/login?error=OAuthEmailMissing&provider=${providerId}`;
       }
-      if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+      // Only enforced when GOOGLE_ALLOWED_DOMAIN is set; empty means anyone
+      // with a Google account may register.
+      if (!isEmailDomainAllowed(email)) {
         return `/login?error=OAuthDomainNotAllowed&provider=${providerId}`;
       }
 

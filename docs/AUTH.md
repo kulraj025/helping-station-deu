@@ -60,9 +60,36 @@ A boolean survives serialisation. An environment variable does not.
    secret.** It never leaves the server.
 5. The `signIn` callback runs. For the Google provider it:
    - extracts the e-mail,
-   - rejects anything not ending in `@deu.ac.kr`,
+   - rejects it if `GOOGLE_ALLOWED_DOMAIN` is set and the address is outside it,
    - returns the existing user, or creates a `STUDENT` row with `passwordHash: null`.
 6. A JWT is issued and the user lands on `/account`.
+
+## Who is allowed to sign in
+
+`GOOGLE_ALLOWED_DOMAIN` decides this, and it is optional.
+
+| Value | Who can sign in |
+| --- | --- |
+| unset or empty (the default) | **Any** Google account. Each first sign-in creates a new `STUDENT` row. |
+| `deu.ac.kr` or `@deu.ac.kr` | Only addresses in that domain. Others are refused before a row is written. |
+
+The leading `@` is optional. The comparison is a case-insensitive suffix match, so `x@evil-deu.ac.kr`
+is correctly rejected.
+
+To close registration once an event has happened, set the variable and redeploy. You do not need a
+code change or a commit.
+
+### Making the consent screen allow everyone
+
+The domain check is only half of it. Google's OAuth consent screen has its own gate:
+
+- **Testing** — only the accounts listed under **Test users** (maximum 100) can complete sign-in.
+  Everyone else sees `access_denied`.
+- **In production** — anyone with a Google account can sign in.
+
+So for "anyone can log in" you need **both**: the consent screen set to *In production*, **and**
+`GOOGLE_ALLOWED_DOMAIN` left empty. With only the scopes this app requests (`openid email profile`),
+publishing does not require Google's verification review.
 
 ## What an OAuth account looks like in the database
 
@@ -71,7 +98,7 @@ A provisionable account, straight after first sign-in:
 | Column | Value | Why |
 | --- | --- | --- |
 | `id` | `google_<google-subject>` | The provider's stable user id |
-| `email` | the `@deu.ac.kr` address | Unique, and the lookup key |
+| `email` | the address Google returned | Unique, and the lookup key |
 | `name` | profile name, else the local part of the e-mail | Google may not send one |
 | `studentId` | `GOOGLE_<first 8 of sub>` | Placeholder until an organiser fills in the real one |
 | `department` | `Unknown` | No provider returns a faculty |
@@ -115,7 +142,8 @@ Not configured in this deployment. Google is the only OAuth provider enabled.
 | `access_denied` | The consent screen is not published and you are not a test user | Publish the consent screen, or add the address as a test user |
 | Redirects straight back to `/login` | `AUTH_SECRET` differs between the instances handling the two requests, so `state` will not verify | One secret, everywhere. Rotating it invalidates all sessions. |
 | `Configuration` error from NextAuth | NextAuth cannot determine its own base URL | Set `NEXT_PUBLIC_APP_URL`, and `AUTH_URL` if the host header is not trustworthy |
-| Any account rejected, not `@deu.ac.kr` | The address is not a university address | Expected. The domain is enforced in `src/auth.ts` as `ALLOWED_EMAIL_DOMAIN`. |
+| Any account rejected | The address is outside `GOOGLE_ALLOWED_DOMAIN`, or that variable is set and you expected it to be open | Check the variable. Empty means anyone may sign in. See [Who is allowed to sign in](#who-is-allowed-to-sign-in). |
+| Everyone else gets `access_denied` but you can sign in | The consent screen is still in **Testing**, so you are a test user and they are not | Switch the consent screen to **In production** |
 | Sign-in works, then every page 500s | No `User` row for that identity, or the database is unreachable | Check `/admin/settings` and the `DATABASE_URL` |
 
 ## Rotating a leaked secret
