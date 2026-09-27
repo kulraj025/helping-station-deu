@@ -11,7 +11,8 @@ import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Set up the organiser account",
-  description: "Create the first organiser account for this deployment.",
+  description:
+    "One-time setup for this deployment: create the first organiser account for Helping Station DEU. This page closes itself once one exists.",
   // Never indexed: the page is a one-shot bootstrap door, and there is no
   // reason for it to appear in a search result.
   robots: { index: false, follow: false },

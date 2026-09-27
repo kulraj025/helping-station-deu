@@ -1,4 +1,22 @@
+<div align="center">
+
 # Helping Station DEU
+
+**A student volunteer and awareness programme at Dong-Eui University — with a lucky draw that is
+designed to be believed.**
+
+[![CI](https://github.com/kulraj025/helping-station-deu/actions/workflows/ci.yml/badge.svg)](https://github.com/kulraj025/helping-station-deu/actions/workflows/ci.yml)
+[![Deploy](https://github.com/kulraj025/helping-station-deu/actions/workflows/deploy-migrate.yml/badge.svg)](https://github.com/kulraj025/helping-station-deu/actions/workflows/deploy-migrate.yml)
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.prisma.io)
+[![Node](https://img.shields.io/badge/Node-20-5FA04E?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+
+[Live site](https://helping-station-deu.vercel.app) · [How the draw stays fair](#how-the-draw-is-made-fair) · [Privacy](#privacy-by-construction) · [Day-to-day](#running-the-site-day-to-day)
+
+</div>
+
+---
 
 A student volunteer and awareness programme at Dong-Eui University, with a lucky draw that is
 designed to be believed: a frozen participant pool, a server-side cryptographic random selection,
@@ -13,6 +31,7 @@ volunteering, and it should look like part of the day, not like a gambling produ
 ## Table of contents
 
 - [What it does](#what-it-does)
+- [Running the site day to day](#running-the-site-day-to-day)
 - [How the draw is made fair](#how-the-draw-is-made-fair)
 - [Privacy by construction](#privacy-by-construction)
 - [Stack](#stack)
@@ -54,6 +73,53 @@ volunteering, and it should look like part of the day, not like a gambling produ
 - Track prize claims, append corrections, and never edit a completed draw.
 - Export participants, winners, the draw report and the audit log as CSV or JSON.
 - Read an append-only audit log of every sensitive action.
+- Close any public section, or the whole site, without a deploy — see
+  [Running the site day to day](#running-the-site-day-to-day).
+- Remove an account that was created by mistake, individually or all at once.
+
+---
+
+## Running the site day to day
+
+Everything in this section lives on one screen, [`/admin/controls`](src/app/admin/controls/page.tsx),
+because they are the three things you need to change about a site that is already live, and none of
+them should require a terminal.
+
+### Closing a section
+
+Each public area has an off switch: **registration**, **winners**, the **live draw** (both the page
+and the projector view), and the **rules**. There is also a master switch that closes everything at
+once, for maintenance or between seasons.
+
+A closed section shows a short "closed" page rather than a 404, with an optional note you write
+yourself — "Back on Monday" — so a visitor following an old link is told what happened instead of
+hitting a dead end.
+
+Two deliberate choices:
+
+- **Reading the switches can never fail closed.** If the settings table is missing or the query
+  fails, the site reads as *fully open*. "No opinion" should never mean "closed", and a database
+  blip must not be able to take the public site offline by itself.
+- **The switches are a master control, not a suggestion.** The per-event settings still apply, but a
+  section closed here stays closed. One switch should mean closed, not "closed unless an event
+  disagrees".
+
+### Deleting accounts
+
+A per-account delete, and a bulk delete of every participant behind a typed `DELETE`.
+
+Deleting a participant also removes their registrations and anything derived from them — draw pool
+entries, winners, corrections. That is usually what "delete this participant" means, but it is not
+undoable, so the button says so rather than leaving it implicit.
+
+Three things are refused, because getting them wrong locks the site permanently:
+
+- you cannot delete the account you are signed in with
+- you cannot delete the last organiser, after which nobody could administer the site at all
+- the bulk delete keeps organiser accounts, so it can never leave the site unadministrable
+
+Every one of these paths is covered by tests in
+[`tests/admin-controls.test.ts`](tests/admin-controls.test.ts).
 
 ---
 
@@ -349,17 +415,23 @@ Vercel logs, so check it first when a sign-in loops back to the login page.
 
 ## Appearance
 
-The site has a light and a dark theme, and follows the operating system until you pick one. The
-control is the sun/moon button in the header, and on mobile inside the menu.
+The site is **dark, always**. There is no theme switch, because there is no second theme to switch
+to — a control that can only be set one way is a control that is lying to the reader.
 
 Dark mode is implemented as a **palette remap** rather than per-component `dark:` variants: every
 colour utility in Tailwind 4 compiles to a `var(--color-*)`, so re-declaring those properties under
 a `.dark` scope on `<html>` flips the whole site at once, with no changes to any component. That
 means a new component cannot forget to handle dark mode.
 
-The theme is applied by a small inline script in `<head>` rather than a React effect, because an
-effect runs after the first paint and would show a flash of the light theme. Printing always uses
-the light palette.
+`.dark` is set on `<html>` on the server, not by an inline script. With no preference to honour
+there is nothing to decide once the HTML arrives, which removes the flash of a light theme, the
+`suppressHydrationWarning` that existed only to paper over the server/DOM mismatch, and the
+dependency on `localStorage` — a store that fails outright in private browsing, and so was a way for
+the page to render in the wrong theme. Native widgets (scrollbars, form controls, autofill) follow
+automatically via `color-scheme`.
+
+The dark tokens sit inside a `@media screen` block, so **printing still uses the light palette** —
+printing a dark page wastes ink and is hard to read.
 
 [`docs/DESIGN.md`](docs/DESIGN.md) covers the palette, how a token that serves both a background and
 a text colour is handled, and how to check contrast:
@@ -414,6 +486,7 @@ public; `(admin)` and `(display)` are not.
 | `/privacy` | Privacy notice. |
 | `/success` | Post-registration confirmation. |
 | `/login` | Sign in. Organiser, student, and Google. |
+| `/setup` | First-run only: creates the first organiser account. Closes itself once one exists. |
 | `/account` | The signed-in student's own record and claim code. |
 
 ### Organiser
@@ -421,6 +494,7 @@ public; `(admin)` and `(display)` are not.
 | Route | Purpose |
 | --- | --- |
 | `/admin` | Dashboard. |
+| `/admin/controls` | Close public sections, delete accounts. |
 | `/admin/events`, `/admin/events/new`, `/admin/events/[id]` | Event management. |
 | `/admin/participants` | Eligibility, departments, corrections. |
 | `/admin/draw` | Lock, seed, draw, reveal. |
@@ -450,6 +524,7 @@ constants in the application layer, so an unexpected value is a handled error ra
 | Model | Holds |
 | --- | --- |
 | `User` | Identity, role, department, claim-code hash. `role` is `STUDENT` or `ADMIN`. |
+| `SiteSettings` | One row of site-wide switches: which public sections are open, and the note shown on a closed one. |
 | `LoginAttempt` | Every sign-in attempt, hashed IP, for rate limiting and review. |
 | `Event` | The programme: schedule, venue, capacity, and `settings` as `jsonb`. |
 | `Registration` | One student's place in an event, entry number, consent timestamps. |

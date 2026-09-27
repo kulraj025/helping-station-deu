@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getPrimaryEvent, resolveEvent } from "@/server/services/event-service";
 import { getPublicDrawState } from "@/server/services/draw-service";
 import { DrawStage } from "@/components/public/draw-stage";
@@ -5,6 +6,16 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSiteSettings } from "@/server/services/site-settings-service";
 import { SectionClosed } from "@/components/site/section-closed";
+
+export const metadata: Metadata = {
+  title: "Live draw",
+  // This route is a full-screen board for the venue's projector, and `/draw` is
+  // already `noindex` for the same reason: neither is a page anybody should
+  // land on from a search result. Without this the projector screen was the one
+  // route in the app with no metadata at all, and so inherited the site's
+  // defaults and became indexable.
+  robots: { index: false, follow: false },
+};
 
 export const dynamic = "force-dynamic";
 

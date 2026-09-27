@@ -29,7 +29,8 @@ import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "My participation",
-  description: "Your registrations, participation status and any prizes.",
+  description:
+    "Your own registrations, participation status and any prizes from Helping Station DEU. Sign in to check in, withdraw, or see your entry number.",
   robots: { index: false, follow: false },
 };
 

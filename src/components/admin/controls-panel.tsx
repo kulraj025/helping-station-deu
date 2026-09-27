@@ -32,6 +32,14 @@ export interface UserRow {
   registrations: number;
 }
 
+/**
+ * A submit button wired to its form's pending state.
+ *
+ * `w-full sm:w-auto` is not decoration. The button base carries
+ * `whitespace-nowrap`, so a long label cannot wrap — it simply runs past the edge
+ * of a 320px screen. Letting the button fill the row on a phone and shrink back
+ * to its content above `sm` means no label has to be shortened to fit.
+ */
 function Submit({ label, pendingLabel, variant = "primary" }: {
   label: React.ReactNode;
   pendingLabel: string;
@@ -39,7 +47,7 @@ function Submit({ label, pendingLabel, variant = "primary" }: {
 }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant={variant} disabled={pending}>
+    <Button type="submit" variant={variant} className="w-full sm:w-auto" disabled={pending}>
       {pending ? <Spinner label={pendingLabel} /> : label}
     </Button>
   );

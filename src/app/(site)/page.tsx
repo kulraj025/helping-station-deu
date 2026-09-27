@@ -9,8 +9,11 @@ import { SectionClosed } from "@/components/site/section-closed";
 
 export const metadata: Metadata = {
   title: "Serving Beyond Borders — Student Volunteer Programme",
+  // Kept under ~160 characters. Search engines truncate past that, and a
+  // description that gets cut mid-sentence is worse than a shorter one that
+  // reads as a complete thought. The full sentence lives in the hero instead.
   description:
-    "Helping Station DEU is a student-led social and environmental awareness and volunteer action programme at Dong-Eui University. Learn, participate, take action and grow together.",
+    "A student-led volunteer and awareness programme at Dong-Eui University. Take part in activities, volunteer, and join a fair, verifiable lucky draw.",
 };
 
 export const dynamic = "force-dynamic";

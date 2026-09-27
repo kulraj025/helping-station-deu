@@ -50,19 +50,31 @@ that it replaced is the browser logo, so a sign-in button wearing it reads as "o
 
 There are roughly 400 colour utilities across the components. Expressing dark mode as `dark:` classes
 on each one would be a large, easy-to-break diff, and every future component would have to remember
-to handle it. The remap makes the dark theme the *default* behaviour and keeps light mode as the
-override.
+to handle it. The remap means the palette is declared once, and a new component cannot get it wrong
+by forgetting a variant.
 
-### How a theme is chosen and applied
+### Why there is no theme switch
 
-`src/app/layout.tsx` renders a small inline script in `<head>` that reads `localStorage.theme` and
-falls back to `prefers-color-scheme`, then adds `.dark` to `<html>`. It has to be inline and
-synchronous: a React effect runs after the browser has already painted, which shows the user a flash
-of the light theme. `<html>` carries `suppressHydrationWarning` because that script legitimately
-mutates the class the server rendered.
+The site is dark, unconditionally. A sun/moon button was in the header and in the mobile menu, and it
+was removed: with only one theme there is nothing for it to choose, so it advertised a choice that
+did not exist.
 
-`src/components/ui/theme-toggle.tsx` flips the class and writes the choice back to `localStorage`,
-which makes it sticky. Until that first manual choice the toggle follows the operating system.
+### How the theme is applied
+
+`src/app/layout.tsx` puts `dark` on `<html>` **on the server**. There is no inline script and no
+`suppressHydrationWarning`, because with no preference to honour there is no decision left to make
+after the HTML arrives. That is worth spelling out, because the previous implementation did it the
+other way and each part of that existed to solve a problem the always-dark decision removes:
+
+- an inline `<head>` script, to set the class before first paint and avoid a flash of light — gone,
+  since the server already sent the final class
+- `suppressHydrationWarning`, because the script mutated a class the server had rendered — gone, for
+  the same reason
+- `localStorage`, to remember the choice — gone, and with it a failure mode where private browsing
+  or a blocked-storage browser silently rendered the wrong theme
+
+`color-scheme: dark` is what makes native widgets (scrollbars, form controls, autofill) match. The
+dark tokens live inside a `@media screen` block, so printing falls back to the light palette.
 
 ### Tokens that do double duty
 

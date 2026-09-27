@@ -12,7 +12,8 @@ import { registerUrl } from "@/lib/qr";
 
 export const metadata: Metadata = {
   title: "Participation card",
-  description: "Your printable participation card for Helping Station DEU.",
+  description:
+    "Your printable participation card and entry number for Helping Station DEU, with the venue details and what happens next.",
   robots: { index: false, follow: false },
 };
 
