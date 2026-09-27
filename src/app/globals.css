@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Dark mode is driven by a `.dark` class on <html> (see the bottom of this
+   file), so `dark:` utilities key off that class rather than the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ==========================================================================
    Helping Station DEU — design system
    Environmental palette: deep green primary, sky + gold accents, soft canvas.
@@ -416,5 +420,234 @@
 
   @page {
     margin: 12mm;
+  }
+}
+
+/* ==========================================================================
+   Dark theme
+   --------------------------------------------------------------------------
+   Every colour utility in this project compiles to a `var(--color-*)`, so
+   dark mode is a palette remap instead of a per-component rewrite: one
+   `.dark` class on <html> flips the entire site.
+
+   Tailwind resolves alpha modifiers through `color-mix(..., var(--color-x),
+   ...)`, so re-declaring a token also moves its `/40`, `/60` and `/80`
+   variants. That is what makes the pins below work with a single declaration
+   each.
+
+   Many tokens do double duty — `white` backs both `bg-white` and
+   `text-white`, `leaf-100` is a pale tint as a background and pale ink on a
+   dark panel as text. For those, the token keeps the role it has in more
+   places and the other role is pinned explicitly.
+
+   The whole block is `@media screen` so printing always falls back to the
+   light palette, which is what a participation card or poster needs.
+   ========================================================================== */
+
+@media screen {
+  .dark {
+    color-scheme: dark;
+
+    /* --- Dark surface ramp --------------------------------------------- */
+    --surface-page: #020617;
+    --surface-sunken: #0a0f1a;
+    --surface-card: #0f172a;
+    --surface-raised: #111a2b;
+    --line: #1b2637;
+    --line-strong: #263449;
+
+    /* --- Brand surfaces ------------------------------------------------- */
+    --brand-surface: #0b1f14;
+    --brand-surface-2: #10281a;
+    --brand-surface-3: #1b3a26;
+    --brand-panel: #052e16;
+    --brand-fill: #15803d;
+    --brand-fill-hover: #1a9440;
+
+    /* --- Brand ink (used on dark surfaces) ------------------------------ */
+    --brand-ink: #4ade80;
+    --brand-ink-strong: #86efac;
+    --brand-ink-soft: #bbf7d0;
+
+    /* --- Neutrals: surfaces in, ink out --------------------------------- */
+    --color-white: var(--surface-card);
+    --color-canvas: var(--surface-page);
+    --color-slate-50: var(--surface-sunken);
+    --color-slate-100: var(--surface-raised);
+    --color-slate-200: var(--line);
+    --color-slate-300: var(--line-strong);
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #9dabbd;
+    --color-slate-600: #b4c1d3;
+    --color-slate-700: #ccd6e2;
+    --color-slate-800: #dfe7f0;
+    --color-slate-900: #f1f5f9;
+
+    /* --- Brand ramp: the dark end becomes ink, the pale end stays pale -- */
+    --color-leaf-400: #2e7a41;
+    --color-leaf-500: #1d7a3f;
+    --color-leaf-600: var(--brand-ink);
+    --color-leaf-700: var(--brand-fill);
+    --color-leaf-800: var(--brand-ink);
+    --color-leaf-900: var(--brand-ink-strong);
+    --color-leaf-950: var(--brand-ink-soft);
+
+    /* --- Accents -------------------------------------------------------- */
+    --color-azure-50: #0a1f2e;    --color-azure-100: #0d2a3d;
+    --color-azure-200: #15374b;
+    --color-azure-500: #38bdf8;
+    --color-azure-600: #7dd3fc;
+    --color-azure-700: #bae6fd;
+
+    --color-gold-300: #4a2606;
+    --color-gold-400: #6b3a0a;
+    --color-gold-500: #fbbf24;
+    --color-gold-600: #fcd34d;
+
+    /* --- Shadows read better lifted off a black page -------------------- */
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 18px 40px -18px rgb(0 0 0 / 0.7);
+    --shadow-glow: 0 0 0 1px rgb(187 247 208 / 0.12), 0 24px 60px -24px rgb(0 0 0 / 0.8);
+  }
+
+  /* --- Brand tokens whose light values stay put ------------------------- */
+  /* Pale greens are text on the dark panels, but background tint elsewhere. */
+  .dark .bg-leaf-50,
+  .dark .bg-leaf-50\/40,
+  .dark .bg-leaf-50\/60,
+  .dark .bg-leaf-50\/70 {
+    --color-leaf-50: var(--brand-surface);
+  }
+
+  .dark .bg-leaf-100 {
+    --color-leaf-100: var(--brand-surface-2);
+  }
+
+  .dark .bg-leaf-200,
+  .dark .bg-leaf-200\/50 {
+    --color-leaf-200: var(--brand-surface-3);
+  }
+
+  .dark .bg-leaf-300 {
+    --color-leaf-300: #24492e;
+  }
+
+  /* The pale end is also used for hairlines, which need to recede. */
+  .dark .border-leaf-200,
+  .dark .border-leaf-200\/60 {
+    --color-leaf-200: var(--brand-surface-3);
+  }
+
+  .dark .border-leaf-300 {
+    --color-leaf-300: #24492e;
+  }
+
+  .dark .border-leaf-50\/10 {
+    --color-leaf-50: var(--brand-surface);
+  }
+
+  /* `leaf-700` is the primary button fill far more often than it is text. */
+  .dark .text-leaf-700,
+  .dark .hover\:text-leaf-700:hover {
+    --color-leaf-700: var(--brand-ink);
+  }
+
+  .dark .bg-leaf-600,
+  .dark .bg-leaf-700 {
+    --color-leaf-600: var(--brand-fill);
+    --color-leaf-700: var(--brand-fill);
+  }
+
+  .dark .hover\:bg-leaf-800:hover {
+    --color-leaf-800: var(--brand-fill-hover);
+  }
+
+  /* --- Panels that are dark green by design ---------------------------- */
+  .dark .bg-leaf-900,
+  .dark .bg-leaf-950 {
+    --color-leaf-900: var(--brand-panel);
+    --color-leaf-950: var(--brand-panel);
+  }
+
+  /* --- Neutral tokens used as surfaces in a handful of places ---------- */
+  .dark .bg-slate-200,
+  .dark .bg-slate-400,
+  .dark .bg-slate-800 {
+    --color-slate-200: var(--surface-raised);
+    --color-slate-400: var(--line-strong);
+    --color-slate-800: var(--surface-card);
+  }
+
+  .dark .bg-slate-900 {
+    --color-slate-900: var(--surface-page);
+  }
+
+  .dark .text-slate-200,
+  .dark .text-slate-300 {
+    --color-slate-200: #dfe7f0;
+    --color-slate-300: #ccd6e2;
+  }
+
+  .dark .text-white {
+    --color-white: #f8fafc;
+  }
+
+  .dark .border-white {
+    --color-white: var(--line-strong);
+  }
+
+  .dark .bg-azure-500 {
+    --color-azure-500: #0369a1;
+  }
+
+  .dark .bg-azure-600 {
+    --color-azure-600: #0284c7;
+  }
+
+  .dark .bg-gold-500 {
+    --color-gold-500: #78350f;
+  }
+
+  /* --- Component classes that hardcode light values -------------------- */
+  .dark .card {
+    background-color: var(--surface-card);
+    border-color: var(--line);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .dark .card-glass {
+    background-color: rgb(15 23 42 / 0.82);
+    border-color: rgb(51 65 85 / 0.7);
+  }
+
+  .dark .bg-canopy {
+    background-image:
+      radial-gradient(60rem 30rem at 8% -10%, rgb(21 128 61 / 0.22), transparent 60%),
+      radial-gradient(45rem 26rem at 100% 0%, rgb(2 132 199 / 0.16), transparent 55%),
+      radial-gradient(40rem 24rem at 50% 110%, rgb(22 163 74 / 0.14), transparent 60%);
+  }
+
+  .dark .bg-dots {
+    background-image: radial-gradient(rgb(187 247 208 / 0.1) 1px, transparent 1px);
+  }
+
+  .dark .bg-grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(187 247 208 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(187 247 208 / 0.06) 1px, transparent 1px);
+  }
+
+  .dark .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      rgb(27 38 55 / 0.7) 25%,
+      rgb(15 23 42 / 0.9) 37%,
+      rgb(27 38 55 / 0.7) 63%
+    );
+  }
+
+  /* The navbar goes translucent once the page scrolls. */
+  .dark .bg-white\/85 {
+    background-color: rgb(2 6 23 / 0.82);
   }
 }

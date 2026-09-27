@@ -9,6 +9,7 @@ what the app does and why; these files cover how to operate it.
 | [`AUTH.md`](AUTH.md) | You are wiring up Google sign-in, or debugging a redirect loop. |
 | [`OPERATIONS.md`](OPERATIONS.md) | It is live and you need to know what to check, and what to do when something breaks. |
 | [`DATABASE.md`](DATABASE.md) | You are changing the Prisma schema, or seeding, or recovering data. |
+| [`DESIGN.md`](DESIGN.md) | You are changing colours, adding a component, or working on dark mode. |
 
 ## The short version
 

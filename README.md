@@ -19,6 +19,7 @@ volunteering, and it should look like part of the day, not like a gambling produ
 - [Getting started](#getting-started)
 - [Environment variables](#environment-variables)
 - [Signing in](#signing-in)
+- [Appearance](#appearance)
 - [Commands](#commands)
 - [Routes](#routes)
 - [Data model](#data-model)
@@ -315,3 +316,215 @@ The redirect URI must match **exactly** — scheme, host, path, and no trailing 
 produces `redirect_uri_mismatch`, which Google reports only on the consent screen, not in the
 Vercel logs, so check it first when a sign-in loops back to the login page.
 
+---
+
+## Appearance
+
+The site has a light and a dark theme, and follows the operating system until you pick one. The
+control is the sun/moon button in the header, and on mobile inside the menu.
+
+Dark mode is implemented as a **palette remap** rather than per-component `dark:` variants: every
+colour utility in Tailwind 4 compiles to a `var(--color-*)`, so re-declaring those properties under
+a `.dark` scope on `<html>` flips the whole site at once, with no changes to any component. That
+means a new component cannot forget to handle dark mode.
+
+The theme is applied by a small inline script in `<head>` rather than a React effect, because an
+effect runs after the first paint and would show a flash of the light theme. Printing always uses
+the light palette.
+
+[`docs/DESIGN.md`](docs/DESIGN.md) covers the palette, how a token that serves both a background and
+a text colour is handled, and how to check contrast:
+
+```bash
+npm run build && npm run audit:contrast
+```
+
+That audit resolves the cascade by hand and reports any text/background pair in `src/` below WCAG
+AA. It runs in CI, because a token resolving to an unreadable colour is invisible to the type
+checker and the unit tests.
+
+---
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Development server on <http://localhost:3000>. |
+| `npm run build` | Generate the Prisma client, then build for production. |
+| `npm run typecheck` | `tsc --noEmit`. |
+| `npm run lint` | ESLint over the project. |
+| `npm test` | The full Vitest suite. |
+| `npm run audit:contrast` | Dark-mode contrast report. Needs a build first. |
+| `npm run setup` | Guided first-run setup. |
+| `npm run db:dev` | Start a local PostgreSQL that needs no installation. |
+| `npm run db:push` | Apply the schema directly, without a migration. |
+| `npm run db:migrate` | Create and apply a migration. |
+| `npm run db:deploy` | Apply pending migrations. Used in production. |
+| `npm run db:seed` | Load the demo event, prizes and accounts. |
+| `npm run db:studio` | Browse the data in a GUI. |
+
+---
+
+
+## Routes
+
+Three groups, split by route group so each can have its own layout. Every page under `(site)` is
+public; `(admin)` and `(display)` are not.
+
+### Public
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Landing page. |
+| `/event`, `/event/[slug]` | Event details and registration state. |
+| `/register` | Registration form. Requires a signed-in student. |
+| `/draw` | Public draw state. |
+| `/draw/display` | Full-screen board for the venue's screen. |
+| `/winners` | Published winners. |
+| `/rules` | Participation rules. |
+| `/privacy` | Privacy notice. |
+| `/success` | Post-registration confirmation. |
+| `/login` | Sign in. Organiser, student, and Google. |
+| `/account` | The signed-in student's own record and claim code. |
+
+### Organiser
+
+| Route | Purpose |
+| --- | --- |
+| `/admin` | Dashboard. |
+| `/admin/events`, `/admin/events/new`, `/admin/events/[id]` | Event management. |
+| `/admin/participants` | Eligibility, departments, corrections. |
+| `/admin/draw` | Lock, seed, draw, reveal. |
+| `/admin/winners` | Winner management. |
+| `/admin/prizes` | Prize management. |
+| `/admin/eligibility` | Bulk eligibility rules. |
+| `/admin/export` | CSV export. |
+| `/admin/audit` | Audit log. |
+| `/admin/settings` | Organiser details and notifications. |
+
+### API
+
+| Route | Purpose |
+| --- | --- |
+| `/api/auth/[...nextauth]` | Auth.js. Credentials and Google. |
+| `/api/public/event`, `/api/public/draw-state` | Polled by the public pages. |
+| `/api/events/[id]/qr`, `/api/events/[id]/poster` | QR and poster generation. |
+| `/api/admin/export` | CSV export. |
+
+---
+
+## Data model
+
+PostgreSQL via Prisma. Statuses and roles are `String` in the database and narrowed to validated
+constants in the application layer, so an unexpected value is a handled error rather than a crash.
+
+| Model | Holds |
+| --- | --- |
+| `User` | Identity, role, department, claim-code hash. `role` is `STUDENT` or `ADMIN`. |
+| `LoginAttempt` | Every sign-in attempt, hashed IP, for rate limiting and review. |
+| `Event` | The programme: schedule, venue, capacity, and `settings` as `jsonb`. |
+| `Registration` | One student's place in an event, entry number, consent timestamps. |
+| `Prize` | Prizes for an event, with draw weight. |
+| `Draw` | Seed, commitment, reveal, and status for one draw. |
+| `DrawPoolEntry` | The frozen pool: eligibility decided before the lock. |
+| `Winner` | Published result per prize. |
+| `DrawCorrection` | Amendments after a draw, always attributed. |
+| `AuditLog` | Append-only record of every privileged action. |
+| `Notification` | Messages for participants and organisers. |
+
+`EntryNumber` is unique per event, so the same number cannot be issued twice. Consent timestamps
+(`rulesAcceptedAt`, `dataConsentAt`, `drawConsentAt`, `publicDisplayConsent`) are stored per
+registration rather than assumed, which is what makes the privacy claims checkable.
+
+See [`docs/DATABASE.md`](docs/DATABASE.md) for migrations, seeding and recovery.
+
+---
+
+## Tests
+
+148 tests across five files, all runnable with `npm test`. No database and no network required.
+
+| File | Covers |
+| --- | --- |
+| `validation.test.ts` | Zod schemas at their boundaries. |
+| `draw.test.ts` | Seed commitment, CSPRNG selection, immutability after completion. |
+| `entry-number.test.ts` | Entry number allocation and collision handling. |
+| `privacy.test.ts` | Personal data exposure, consent requirements. |
+| `csv.test.ts` | Export escaping, column order, formula-injection guards. |
+
+`draw.test.ts` is the one that matters most: it pins the guarantees described in
+[How the draw is made fair](#how-the-draw-is-made-fair), so a refactor cannot quietly trade
+auditability for convenience.
+
+---
+
+## Deploying
+
+The full procedure is in **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**. The short version:
+
+1. Provision PostgreSQL and set `DATABASE_URL`.
+2. Set `AUTH_SECRET` to a long random value, and `NEXT_PUBLIC_APP_URL` to the real public origin.
+   **Not localhost** — it is baked into the OAuth redirect and the metadata.
+3. Run `npm run db:deploy` to apply migrations.
+4. Deploy, then verify `/` and `/login` before telling anyone the link.
+
+Two mistakes account for most of the time lost here: `NEXT_PUBLIC_APP_URL` left on localhost, and
+deploying code that queries a column before the migration that adds it has run.
+
+If you deploy to Vercel on a Hobby plan, note the commit-author rule described in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#the-vercel-commit-author-restriction).
+
+---
+
+## Further documentation
+
+| Document | Read it when |
+| --- | --- |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Putting this on the internet. Start here. |
+| [`docs/AUTH.md`](docs/AUTH.md) | Wiring up Google sign-in, or debugging a redirect loop. |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | It is live. What to check, and what to do when it breaks. |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Changing the schema, seeding, or recovering data. |
+| [`docs/DESIGN.md`](docs/DESIGN.md) | Changing colours, adding a component, or working on dark mode. |
+
+---
+
+## Design decisions worth knowing
+
+**Personal data stays on the server.** Server components by default, and the client only receives
+what a page genuinely needs. This is why the organiser's participant list is not a public payload.
+
+**The enabled/disabled check for OAuth buttons runs on the server.** `GOOGLE_CLIENT_ID` is not a
+`NEXT_PUBLIC_` variable, so it is stripped from the browser bundle. Checking it inside the client
+form would render the button during SSR and then delete it on hydration — a button that appears and
+vanishes. The decision is made in the page component and passed down as a boolean.
+
+**Statuses are strings, not enums.** Narrowed by validated constants in the application layer, so
+adding a status is a code change rather than a migration, and a bad value surfaces as a handled
+error.
+
+**Dark mode remaps the palette instead of overriding components.** See
+[Appearance](#appearance) and [`docs/DESIGN.md`](docs/DESIGN.md).
+
+**The scroll-reveal animation cannot leave content invisible.** The element is hidden only while it
+is explicitly pending, and a timeout backstop covers an `IntersectionObserver` that never calls back.
+Content is never hidden by default.
+
+**Migrations run from CI, not from a laptop.** `db:deploy` is idempotent, so the deploy workflow
+applies pending migrations before handing off. A migration that only someone can run by hand is a
+migration that will be forgotten.
+
+---
+
+## Known limitations
+
+- **The organiser is not seeded into production.** Create the first admin by hand; see
+  [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). `/admin` is unreachable until one exists.
+- **Google sign-in is restricted to `@deu.ac.kr`.** Anyone else is refused before a row is written.
+  This is deliberate; widening it means changing `ALLOWED_EMAIL_DOMAIN` in `src/auth.ts`.
+- **First sign-in creates a placeholder profile.** Google provides a name and e-mail but not a
+  student ID or department, so those are filled in by an organiser afterwards.
+- **A completed draw cannot be edited.** Corrections are recorded as new `DrawCorrection` rows
+  rather than by mutating the result. That is the point, but it does mean corrections are a
+  multi-step operation.
+- **CI can flake on Google Fonts.** `@next/font` occasionally fails to fetch in CI with
+  `TypeError: Cannot read properties of null`. It is a network flake, not a code fault; re-run.

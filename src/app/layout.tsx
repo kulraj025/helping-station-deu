@@ -54,6 +54,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Applies the stored theme before the first paint. This has to be an inline
+ * script rather than a component: a React effect runs after the browser has
+ * already painted, which shows the user a flash of the light theme.
+ */
+const themeScript = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.classList.toggle("dark",t==="dark")}catch(e){}})();`;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The nav shows an account link, so the session is read once at the root.
   const user = await getCurrentUser();
@@ -64,8 +71,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-scroll-behavior="smooth"
+      // The script above mutates this class, so the server HTML and the DOM
+      // legitimately disagree here.
+      suppressHydrationWarning
       className={`${inter.variable} ${sora.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main"

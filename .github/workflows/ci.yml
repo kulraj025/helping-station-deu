@@ -80,3 +80,9 @@ jobs:
           DB_POOL_MAX: "1"
           DEMO_MODE: "true"
           APP_IS_PRODUCTION: "false"
+
+      # Runs here because it reads the compiled stylesheet this job just
+      # produced. Dark mode is a CSS-variable remap, so a token resolving to
+      # the wrong colour is invisible to the type checker and the unit tests.
+      - name: Audit dark-mode contrast
+        run: npm run audit:contrast
