@@ -126,7 +126,6 @@ What is not in place, and should not be mistaken for covered:
 | --- | --- | --- |
 | `AUTH_SECRET` | `crypto.randomBytes(32).toString('base64')` | Every session ends |
 | `GOOGLE_CLIENT_SECRET` | Google Cloud → Credentials | Nobody can sign in until the new value is deployed |
-| `KAKAO_CLIENT_SECRET` | Kakao console | Same |
 | `DATABASE_URL` password | Neon console | Connection pool fails until updated everywhere |
 
 Always rotate at the provider first, then deploy. The other order leaves a live credential

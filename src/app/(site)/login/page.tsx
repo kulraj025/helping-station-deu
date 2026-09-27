@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth-helpers";
 import { LoginForm } from "@/components/auth/login-form";
 import { Reveal } from "@/components/ui/reveal";
 import { DemoCredentials } from "@/components/auth/demo-credentials";
-import { env, isGoogleEnabled, isKakaoEnabled } from "@/lib/env";
+import { env, isGoogleEnabled } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -39,7 +39,6 @@ export default async function LoginPage({
    * would render during SSR and then vanish on hydration.
    */
   const googleEnabled = isGoogleEnabled();
-  const kakaoEnabled = isKakaoEnabled();
 
   return (
     <section className="bg-canopy relative overflow-hidden py-12 sm:py-16">
@@ -54,7 +53,6 @@ export default async function LoginPage({
             callbackUrl={callbackUrl}
             reason={reason}
             googleEnabled={googleEnabled}
-            kakaoEnabled={kakaoEnabled}
             initialError={oauthError}
           />
         </Reveal>

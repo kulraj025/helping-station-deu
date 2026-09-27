@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AlertCircle, Chrome, KeyRound, Leaf, Lock, LogIn, MessageCircle, ShieldCheck, UserRound } from "lucide-react";
+import { AlertCircle, Chrome, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/feedback";
@@ -14,15 +14,11 @@ type Mode = "student" | "organiser";
 export interface LoginFormProps {
   callbackUrl?: string;
   reason?: string;
-  /**
-   * Whether the Google provider is configured on the server. Passed in by the
-   * login page rather than read from `process.env` here: this file is a client
-   * component, and non-`NEXT_PUBLIC_` variables are stripped from the browser
-   * bundle, which would drop the button on hydration.
-   */
+  /** Whether the Google provider is configured on the server. Passed in by the
+   *  login page rather than read from `process.env` here: this file is a client
+   *  component, and non-`NEXT_PUBLIC_` variables are stripped from the browser
+   *  bundle, which would drop the button on hydration. */
   googleEnabled?: boolean;
-  /** Whether the KakaoTalk provider is configured on the server. */
-  kakaoEnabled?: boolean;
   /** Error code handed over from the `?error=` query string. */
   initialError?: string;
 }
@@ -40,7 +36,6 @@ export function LoginForm({
   callbackUrl = "/account",
   reason,
   googleEnabled = false,
-  kakaoEnabled = false,
   initialError,
 }: LoginFormProps) {
   const router = useRouter();
@@ -78,7 +73,7 @@ export function LoginForm({
     });
   }
 
-  function handleOAuthSignIn(provider: "google" | "kakao") {
+  function handleOAuthSignIn(provider: "google") {
     setError(null);
     startTransition(async () => {
       await signIn(provider, { callbackUrl: mode === "organiser" ? "/admin" : callbackUrl });
@@ -98,33 +93,19 @@ export function LoginForm({
           </p>
         </div>
 
-        {/* OAuth buttons. Shown on the Student tab only — organisers always
-            sign in with e-mail and password. */}
-        {mode === "student" && (googleEnabled || kakaoEnabled) ? (
+        {/* Google sign-in. Student tab only — organisers always sign in with
+            e-mail and password. Rendered only when the provider is configured. */}
+        {mode === "student" && googleEnabled ? (
           <div className="mt-6 space-y-2.5">
-            {googleEnabled ? (
-              <button
-                type="button"
-                onClick={() => handleOAuthSignIn("google")}
-                disabled={pending}
-                className="flex w-full items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-leaf-300 hover:bg-slate-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Chrome className="h-4 w-4" aria-hidden="true" />
-                <span>Continue with Google</span>
-              </button>
-            ) : null}
-
-            {kakaoEnabled ? (
-              <button
-                type="button"
-                onClick={() => handleOAuthSignIn("kakao")}
-                disabled={pending}
-                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-bold text-[#191600] transition hover:bg-[#f5d900] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#191600] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                <span>Continue with KakaoTalk</span>
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => handleOAuthSignIn("google")}
+              disabled={pending}
+              className="flex w-full items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-leaf-300 hover:bg-slate-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Chrome className="h-4 w-4" aria-hidden="true" />
+              <span>Continue with Google</span>
+            </button>
 
             <p className="flex items-center gap-3 pt-1 text-xs font-semibold text-slate-400">
               <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
@@ -132,7 +113,7 @@ export function LoginForm({
               <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
             </p>
             <p className="text-center text-xs text-slate-500">
-              Google and KakaoTalk sign-in is limited to{" "}
+              Google sign-in is limited to{" "}
               <span className="font-semibold text-slate-600">@deu.ac.kr</span> addresses.
             </p>
           </div>

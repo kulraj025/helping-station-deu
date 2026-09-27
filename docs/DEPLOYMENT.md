@@ -48,8 +48,6 @@ Every step below is a button in a browser. No CLI, no `vercel` install, no SSH.
 | `NEXT_PUBLIC_APP_URL` | Config | `https://<your-project>.vercel.app` |
 | `GOOGLE_CLIENT_ID` | Secret | From Google Cloud, if using Google sign-in |
 | `GOOGLE_CLIENT_SECRET` | Secret | From Google Cloud |
-| `KAKAO_CLIENT_ID` | Secret | The Kakao REST API key, if using Kakao |
-| `KAKAO_CLIENT_SECRET` | Secret | Only if enabled in the Kakao console |
 
 **Secret or Config?** Use **Secret** for anything that can impersonate you or reach a service:
 secrets, keys, passwords, tokens, and the database URL. **Config** is for values that are public
@@ -81,9 +79,9 @@ The workflow is [`.github/workflows/deploy-migrate.yml`](../.github/workflows/de
 It runs `prisma migrate deploy` — never `migrate dev`, which would try to create a migration and
 prompt for a name in a non-interactive context.
 
-### 5. Wire up the OAuth providers
+### 5. Wire up Google sign-in
 
-Only needed if you want Google or Kakao sign-in. Full instructions in [`AUTH.md`](AUTH.md); the
+Only needed if you want Google sign-in. Full instructions in [`AUTH.md`](AUTH.md); the
 short version:
 
 **Google**
@@ -95,14 +93,6 @@ short version:
 4. Authorized redirect URI: `https://<your-project>.vercel.app/api/auth/callback/google`.
 5. Copy the client ID and secret into the Vercel environment, then redeploy.
 
-**Kakao**
-
-1. [developers.kakao.com](https://developers.kakao.com/) → create an app.
-2. Copy the **REST API key**.
-3. **Kakao Login → Redirect URI** → add
-   `https://<your-project>.vercel.app/api/auth/callback/kakao`.
-4. **Kakao Login → Consent items** → tick **Kakao account email**.
-5. Put the key in the Vercel environment, then redeploy.
 
 ### 6. Create the first admin
 
@@ -140,7 +130,7 @@ In order, because each step depends on the previous one:
 
 1. `/` loads. A missing event shows "No event is open for registration", which is correct for an
    empty database and not an error.
-2. `/login` → Student tab → the Google and Kakao buttons appear.
+2. `/login` → Student tab → the Google button appears.
 3. Sign in with Google using a `@deu.ac.kr` address. You land on `/account`.
 4. `/admin` is reachable with the organiser account.
 5. `/admin/settings` → the readiness panel is empty. Every line there is a real problem.

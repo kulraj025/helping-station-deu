@@ -10,7 +10,6 @@ How sign-in works in Helping Station DEU, and what to do when it does not.
 | Student e-mail + password | `student` | Students | First registration |
 | Student claim code | `student` | Students who lost their password | First registration |
 | Google | `google` | Students | Provisioned on first sign-in |
-| KakaoTalk | `kakao` | Students | Provisioned on first sign-in |
 
 Organisers can only ever use e-mail and password. The Organiser tab on `/login` never renders an
 OAuth button, and `authorize` in the `admin` provider independently re-checks that the row's role is
@@ -21,7 +20,7 @@ OAuth button, and `authorize` in the `admin` provider independently re-checks th
 | File | Responsibility |
 | --- | --- |
 | `src/auth.ts` | Provider definitions, credential verification, the `signIn` / `jwt` / `session` callbacks |
-| `src/lib/env.ts` | The only place environment variables are read, plus `isGoogleEnabled()` / `isKakaoEnabled()` |
+| `src/lib/env.ts` | The only place environment variables are read, plus `isGoogleEnabled()` |
 | `src/app/(site)/login/page.tsx` | Server component. Decides which buttons exist and passes booleans down |
 | `src/components/auth/login-form.tsx` | Client component. Renders buttons from those booleans |
 
@@ -59,7 +58,7 @@ A boolean survives serialisation. An environment variable does not.
    `https://<your-domain>/api/auth/callback/google?code=...&state=...`.
 4. The server exchanges the code for tokens. **This is the only request that uses the client
    secret.** It never leaves the server.
-5. The `signIn` callback runs. For a Google or Kakao provider it:
+5. The `signIn` callback runs. For the Google provider it:
    - extracts the e-mail,
    - rejects anything not ending in `@deu.ac.kr`,
    - returns the existing user, or creates a `STUDENT` row with `passwordHash: null`.
@@ -102,18 +101,9 @@ authenticator app ready before starting.
    - Authorized redirect URI: `https://your-domain/api/auth/callback/google`
 5. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Redeploy.
 
-## Setting up KakaoTalk
+## Other providers
 
-1. [developers.kakao.com](https://developers.kakao.com/) → **My Application** → create an app.
-2. Copy the **REST API key** into `KAKAO_CLIENT_ID`.
-3. Enable **Kakao Login → Security → Use client secret** if you want one, and put the value in
-   `KAKAO_CLIENT_SECRET`.
-4. **Kakao Login → Redirect URI** → add `https://your-domain/api/auth/callback/kakao`.
-5. **Kakao Login → Consent items** → tick **Kakao account email**.
-
-Step 5 is not optional. Kakao withholds the e-mail address unless the user granted that scope, and
-without an address there is nothing to key a student account on. The app reports this as
-"OAuthEmailMissing" rather than a generic failure, but the fix is on Kakao's side.
+Not configured in this deployment. Google is the only OAuth provider enabled.
 
 ## Troubleshooting
 
@@ -125,13 +115,12 @@ without an address there is nothing to key a student account on. The app reports
 | `access_denied` | The consent screen is not published and you are not a test user | Publish the consent screen, or add the address as a test user |
 | Redirects straight back to `/login` | `AUTH_SECRET` differs between the instances handling the two requests, so `state` will not verify | One secret, everywhere. Rotating it invalidates all sessions. |
 | `Configuration` error from NextAuth | NextAuth cannot determine its own base URL | Set `NEXT_PUBLIC_APP_URL`, and `AUTH_URL` if the host header is not trustworthy |
-| Kakao: "That account did not share an e-mail address" | The e-mail consent item was not granted | Tick **Kakao account email** in the Kakao console |
-| Any account rejected, `@deu.ac.kr` | The address is not a university address | Expected. The domain is enforced in `src/auth.ts` as `ALLOWED_EMAIL_DOMAIN`. |
+| Any account rejected, not `@deu.ac.kr` | The address is not a university address | Expected. The domain is enforced in `src/auth.ts` as `ALLOWED_EMAIL_DOMAIN`. |
 | Sign-in works, then every page 500s | No `User` row for that identity, or the database is unreachable | Check `/admin/settings` and the `DATABASE_URL` |
 
 ## Rotating a leaked secret
 
-If `AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` or `KAKAO_CLIENT_SECRET` is ever exposed:
+If `AUTH_SECRET` or `GOOGLE_CLIENT_SECRET` is ever exposed:
 
 1. Rotate it at the provider first, so the old value is dead immediately.
 2. Put the new value in the host's environment.
@@ -144,8 +133,9 @@ If `AUTH_SECRET`, `GOOGLE_CLIENT_SECRET` or `KAKAO_CLIENT_SECRET` is ever expose
 1. Import the provider from `next-auth/providers/*` in `src/auth.ts`.
 2. Add the credentials to `src/lib/env.ts` and an `is<Name>Enabled()` helper.
 3. Add the id to `OAUTH_STUDENT_PROVIDERS` so first sign-in provisions an account.
-4. If the provider can return a non-university address, extract it in the `signIn` callback the way
-   Kakao does. Do not rely on the provider's own `profile` hook to enforce the domain; throwing
-   there produces an unhandled error rather than a message the participant can act on.
+4. If the provider might not return an e-mail at all, handle that before the domain check and
+   report it as its own message. Do not rely on the provider's own `profile` hook to enforce the
+   domain; throwing there produces an unhandled error rather than something the participant can act
+   on.
 5. Pass a boolean down from `src/app/(site)/login/page.tsx` and render the button in
-   `login-form.tsx`. Reuse the `OauthButton` class string.
+   `login-form.tsx`. Reuse the existing button class string.
