@@ -145,7 +145,78 @@ In order, because each step depends on the previous one:
 4. `/admin` is reachable with the organiser account.
 5. `/admin/settings` → the readiness panel is empty. Every line there is a real problem.
 
+## The Vercel commit-author restriction
+
+Read this if you see:
+
+> The deployment was blocked because the commit author does not have contributing access to the
+> project on Vercel. The Hobby Plan does not support collaboration for private repositories.
+
+### What is actually happening
+
+Vercel checks **who authored a commit**, not who pushed it. From [Vercel's own
+documentation](https://vercel.com/docs/deployments/troubleshoot-project-collaboration):
+
+> To deploy commits under a Hobby team, the commit author must be the owner of the Hobby team
+> containing the Vercel project connected to the Git repository. This is verified by comparing the
+> Login Connections Hobby team's owner with the commit author.
+
+So a push is refused when the author e-mail on the head commit is not the e-mail of the person who
+owns the Vercel team. Having push access to the repository is not enough, and the two accounts can
+easily be different people — for instance when one person owns the GitHub repository and another
+owns the Vercel project.
+
+Check what your commits are stamped with:
+
+```bash
+git log --format="%an  %ae" -5
+```
+
+And what your identity is set to:
+
+```bash
+git config user.name
+git config user.email
+```
+
+### The fix
+
+Match the commit author to the Vercel team owner:
+
+```bash
+git config user.name  "the-github-username-of-the-vercel-owner"
+git config user.email "the-verified-github-email-of-the-vercel-owner"
+```
+
+Then make a new commit so the head commit carries the corrected author, and push. Existing history
+keeps its old author, which is fine — Vercel only inspects the commit being deployed.
+
+Use `--global` to change it for every repository on the machine, or drop `--global` to change it
+for this one only.
+
+### The alternative, already wired here
+
+[`deploy-migrate.yml`](../.github/workflows/deploy-migrate.yml) deploys through a **deploy hook**
+rather than the Git integration, and a deploy hook is not subject to the author check. This
+repository pushes on every commit to `main`, so migrations run and the deploy is triggered
+regardless of who authored the commit.
+
+That path works with two accounts and no configuration. It is the recommended route if the GitHub
+repository and the Vercel project are owned by different people.
+
+If you use it, Vercel's own Git integration will still attempt a deployment on every push and fail.
+To stop the confusing red X in the Vercel dashboard, go to **Project → Settings → Git → Connected
+Git Repository → Disconnect**. The deploy hook keeps working; only the automatic Git deploy stops.
+
+---
+
 ## Mistakes worth not repeating
+
+**Two workflows trying to deploy.** Only one should. This repository deploys through
+`deploy-migrate.yml`, which applies migrations and then pings a Vercel deploy hook. A second
+workflow that shells out to the Vercel CLI with a personal token fails with `Error: User not found`
+unless that token is valid, and when it does work it simply races the first one. If you add a second
+deploy path, make sure you meant to.
 
 **`NEXT_PUBLIC_APP_URL` left at localhost.** QR codes, posters and share links all point at
 `http://localhost:3000`. The readiness panel flags it, but nobody reads the readiness panel until

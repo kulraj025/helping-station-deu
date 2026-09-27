@@ -467,6 +467,12 @@ wins roughly a third of the time. A biased shuffle or a modulo artefact fails it
 Step 5 is not optional bookkeeping. Every one of those conditions is something the app will
 otherwise fail quietly on.
 
+On Vercel specifically, a Hobby team only accepts commits authored by the team owner. If the GitHub
+repository and the Vercel project sit under different accounts, automatic Git deploys are refused
+with a "commit author does not have contributing access" error. See
+[the commit-author section of `docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#the-vercel-commit-author-restriction)
+for the fix and for the deploy-hook path that sidesteps it.
+
 `next.config.ts` sets a Content-Security-Policy plus `X-Content-Type-Options`,
 `Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy`. If you add a third-party script, add
 it to the CSP in the same change.
