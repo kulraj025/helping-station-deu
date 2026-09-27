@@ -208,7 +208,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!existingUser) {
           // Create student user from Google profile
           const email = user.email!;
-          const name = user.name || email.split("@")[0];
+          const name = user.name ?? profile?.name ?? email.split("@")[0] ?? "Student";
           const googleId = user.id ?? profile?.sub ?? crypto.randomUUID();
           const studentId = `GOOGLE_${googleId.slice(0, 8)}`;
           const department = "Unknown"; // Will need to be updated by admin
