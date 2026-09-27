@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: helping-station-deu
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: helping-station-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://helping-station-deu.onrender.com
+      - key: DB_POOL_MAX
+        value: "10"
+      - key: DEMO_MODE
+        value: "false"
+      - key: APP_IS_PRODUCTION
+        value: "true"
+    autoDeploy: true
+
+  - type: web
+    name: helping-station-db
+    env: postgresql
+    plan: free
+    databaseName: helpingstation
+    user: helpingstation
+    autoDeploy: true

@@ -2,13 +2,6 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-/**
- * Content Security Policy.
- *
- * The policy is intentionally strict. Two things are worth knowing:
- *  - `style-src` allows `unsafe-inline` because Tailwind/Next inject style tags.
- *  - When Cloudflare Turnstile is enabled, its hosts are added below.
- */
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://challenges.cloudflare.com`,
@@ -48,8 +41,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  output: "standalone", // Required for Docker deployment
   eslint: {
-    // Lint is run explicitly in CI (`npm run lint`); keep production builds fast.
     ignoreDuringBuilds: true,
   },
   experimental: {
