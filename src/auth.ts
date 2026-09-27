@@ -209,12 +209,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Create student user from Google profile
           const email = user.email!;
           const name = user.name || email.split("@")[0];
-          const studentId = `GOOGLE_${user.id.slice(0, 8)}`;
+          const googleId = user.id ?? profile?.sub ?? crypto.randomUUID();
+          const studentId = `GOOGLE_${googleId.slice(0, 8)}`;
           const department = "Unknown"; // Will need to be updated by admin
           
           await prisma.user.create({
             data: {
-              id: `google_${user.id}`,
+              id: `google_${googleId}`,
               email,
               name,
               studentId,
