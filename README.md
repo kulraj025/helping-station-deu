@@ -18,11 +18,13 @@ volunteering, and it should look like part of the day, not like a gambling produ
 - [Stack](#stack)
 - [Getting started](#getting-started)
 - [Environment variables](#environment-variables)
+- [Signing in](#signing-in)
 - [Commands](#commands)
 - [Routes](#routes)
 - [Data model](#data-model)
 - [Tests](#tests)
 - [Deploying](#deploying)
+- [Further documentation](#further-documentation)
 - [Design decisions worth knowing](#design-decisions-worth-knowing)
 - [Known limitations](#known-limitations)
 
@@ -256,6 +258,8 @@ Change them before using this for anything real. The seed is idempotent, so it c
 | `DATA_RETENTION_DAYS` | no | `180` | Stated in the privacy page |
 | `AUTH_TRUST_HOST` | no | `true` | Required behind some proxies |
 | `AUTH_MAX_AGE` | no | `43200` | Session lifetime in seconds |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | — | Both needed to enable Google sign-in |
+| `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` | no | — | ID alone enables Kakao; secret only if enabled in the Kakao console |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | no | — | Both needed to enable the captcha |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | no | — | Both needed for a shared rate limit |
 | `NOTIFICATIONS_ENABLED` | no | `false` | Records notification rows; delivery is not wired up |
@@ -264,6 +268,65 @@ Change them before using this for anything real. The seed is idempotent, so it c
 Missing optional integrations degrade rather than fail: no Turnstile means the honeypot and rate
 limit only, no Upstash means per-instance rate limiting. The admin settings page reports all of
 this, including whether `AUTH_SECRET` is still the development fallback.
+
+---
+
+## Signing in
+
+Students can authenticate in three ways. Organisers only ever use e-mail and password.
+
+| Method | Needs | Notes |
+| --- | --- | --- |
+| Password | an account row | The default. Created on first registration. |
+| Claim code | an account row + the one-time code | Shown once at registration, for people who lose the password. |
+| Google | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Any `@deu.ac.kr` address. |
+| KakaoTalk | `KAKAO_CLIENT_ID` | Any `@deu.ac.kr` address, if the e-mail scope was granted. |
+
+### How the OAuth buttons behave
+
+- The buttons are only rendered on the **Student** tab, and only when the matching environment
+  variables are present. Nothing to configure in code, and no dead buttons in a fresh clone.
+- The enabled/disabled decision is made **on the server** in `src/app/(site)/login/page.tsx` and
+  handed to the form as a boolean. The form is a client component, and `GOOGLE_CLIENT_ID` is not a
+  `NEXT_PUBLIC_` variable, so it is stripped from the browser bundle. Reading the variable inside
+  the form would render the button during SSR and then delete it on hydration.
+- The client secret is never sent to the browser. Only the server exchanges the authorisation
+  code for tokens.
+- First sign-in **provisions a `STUDENT` row automatically** with `passwordHash: null` and
+  `department: "Unknown"`. An organiser fills in the real department later from
+  `/admin/participants`. The Google/Kakao identity is stored as the primary key, so re-linking an
+  existing e-mail is not attempted and cannot be hijacked by matching on a provider ID.
+- Any address outside `@deu.ac.kr` is rejected before a row is written, and the user is sent back
+  to `/login` with an explanatory message rather than a bare OAuth error blob.
+
+### Setting up Google
+
+Google now requires 2-Step Verification on the account that owns the Cloud project, so have an
+authenticator app ready before you start.
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create or pick a project.
+2. **APIs & Services → OAuth consent screen**. Configure it, then either publish it or list your
+   own address under **Test users**. An unconfigured consent screen fails every request.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+4. Application type: **Web application**.
+   - Authorized JavaScript origin: `https://your-app.example.com`
+   - Authorized redirect URI: `https://your-app.example.com/api/auth/callback/google`
+5. Copy the client ID and client secret into the two environment variables above and redeploy.
+
+The redirect URI must match **exactly** — scheme, host, path, and no trailing slash. A mismatch
+produces `redirect_uri_mismatch`, which Google reports only on the consent screen, not in the
+Vercel logs, so check it first when a sign-in loops back to the login page.
+
+### Setting up KakaoTalk
+
+1. [developers.kakao.com](https://developers.kakao.com/) → **My Application** → create an app.
+2. Copy the **REST API key** into `KAKAO_CLIENT_ID`. If you enable
+   **Kakao Login → Security → Use client secret**, put the generated value in
+   `KAKAO_CLIENT_SECRET` as well.
+3. **Kakao Login → Redirect URI** → add
+   `https://your-app.example.com/api/auth/callback/kakao`.
+4. Under **Kakao Login → Consent items**, tick **Kakao account email**. Kakao withholds the
+   address otherwise, and a student without an e-mail cannot be provisioned.
 
 ---
 
@@ -401,9 +464,56 @@ wins roughly a third of the time. A biased shuffle or a modulo artefact fails it
 5. Open `/admin/settings` and read the readiness panel. It lists the real problems: a development
    `AUTH_SECRET`, a localhost public URL, per-instance rate limiting, no captcha, a pool size of 1.
 
+Step 5 is not optional bookkeeping. Every one of those conditions is something the app will
+otherwise fail quietly on.
+
 `next.config.ts` sets a Content-Security-Policy plus `X-Content-Type-Options`,
 `Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy`. If you add a third-party script, add
 it to the CSP in the same change.
+
+### Pick a host
+
+| Host | Guide | Database | Good for |
+| --- | --- | --- | --- |
+| Vercel | [`VERCEL_DEPLOY.md`](VERCEL_DEPLOY.md) | Neon / Supabase | The live deployment. Migrations run from GitHub Actions so no terminal is needed. |
+| Render | [`DEPLOY.md`](DEPLOY.md) | Render Postgres | Single `render.yaml` blueprint, web service + database together. |
+| Railway | [`railway.toml`](railway.toml) | Railway Postgres | `railway up` from the repo root. |
+| Docker | [`Dockerfile`](Dockerfile) | anything reachable | `output: "standalone"`, so the image is small. |
+
+Two things are true of all four:
+
+- **Migrations must run before the new code serves traffic.** A deploy that ships a query against a
+  column the database does not have yet returns a 500 that looks like an application bug. On Vercel
+  this is `.github/workflows/deploy-migrate.yml`, which runs `prisma migrate deploy` and then pings
+  a Vercel deploy hook.
+- **Migrations are additive only.** There is no down-migration step in any of these pipelines. A
+  column rename is a deploy, then a backfill, then a second deploy.
+
+### Production checklist
+
+- [ ] `DEMO_MODE` is off, or you have confirmed the force-disable under `NODE_ENV=production`.
+- [ ] `NEXT_PUBLIC_APP_URL` is the real https origin, with no trailing slash.
+- [ ] `AUTH_SECRET` is fresh for this deployment and not the development fallback.
+- [ ] Migrations have been applied against the production database.
+- [ ] `/admin/settings` shows no warnings.
+- [ ] If Google or Kakao sign-in is on: the redirect URI in the provider console matches
+      `/api/auth/callback/<provider>` on the production origin, character for character.
+- [ ] An admin account exists. The seed creates one, but seeds are not a production strategy.
+
+---
+
+## Further documentation
+
+The README explains what the app is. These explain how to run it.
+
+| Document | Covers |
+| --- | --- |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Vercel + Neon, end to end, without a terminal. The mistakes worth skipping. |
+| [`docs/AUTH.md`](docs/AUTH.md) | How sign-in works, how to add Google or Kakao, and a troubleshooting table. |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Health checks, running a draw, what to do when something breaks, security posture. |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | The schema, migrations, seeding, and useful SQL. |
+| [`VERCEL_DEPLOY.md`](VERCEL_DEPLOY.md) | The Vercel-specific path, condensed. |
+| [`DEPLOY.md`](DEPLOY.md) | Render, Docker, and the generic host path. |
 
 ---
 
@@ -427,6 +537,16 @@ refuses to run against anything with `isDemo = false`.
 **The rules page is not marketing copy.** It is the same commitment the code enforces, in words a
 participant can read before registering.
 
+**OAuth provisions a student, never an organiser.** A Google or Kakao sign-in creates a row with
+`role = "STUDENT"` and `passwordHash = null`, unconditionally. Staff sign in with e-mail and
+password, and the credential provider re-checks the role rather than trusting the tab they clicked.
+Otherwise anyone who can receive mail at a university address could escalate themselves.
+
+**The enabled/disabled check for an OAuth provider lives on the server.** The login form is a client
+component, and `GOOGLE_CLIENT_ID` is stripped from the browser bundle. A button gated by an
+environment variable read inside that component renders during SSR and vanishes on hydration. The
+page decides; the form is told. More in [`docs/AUTH.md`](docs/AUTH.md#why-the-enableddisabled-check-runs-on-the-server).
+
 **Confirmations show an entry number, not a name.** `/success` is what a participant screenshots
 and shares, and it carries nothing worth redacting.
 
@@ -441,8 +561,16 @@ Stated plainly, because a README that claims completeness is not useful.
   `NOTIFICATIONS_ENABLED`.
 - **There is no automated retention job.** `DATA_RETENTION_DAYS` is documented in the privacy page
   and displayed in the admin, but records must be removed deliberately.
-- **Admin accounts are created by the seed only.** There is no invitation or user-management screen;
-  in a real deployment this would be the first thing to add.
+- **Admin accounts are created by the seed or by hand.** There is no invitation or user-management
+  screen, and Google/Kakao sign-in always provisions a `STUDENT`, never an `ADMIN` — an organiser
+  cannot be promoted by signing in with a Google account. In a real deployment a proper invitation
+  flow would be the first thing to add.
+- **OAuth-created students have `department: "Unknown"`.** The providers do not return a faculty,
+  so an organiser has to fill it in from `/admin/participants`. Worth knowing before the first
+  cohort of hundreds signs in.
+- **A Kakao sign-in can fail for a reason Google never has.** If the user declined the e-mail
+  consent item, Kakao returns no address at all. The app reports this as its own message rather
+  than a generic failure, but it cannot be fixed from this side.
 - **Attendance is a single status per participant.** There is no check-in kiosk, no QR scanning and
   no per-activity tracking, so an organiser working a paper sheet is the realistic workflow.
 - **Rate limiting is in-process by default.** Set the Upstash variables before running more than one

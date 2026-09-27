@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertCircle, Chrome, KeyRound, Leaf, Lock, LogIn, MessageCircle, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox, Field, FormAlert, Input } from "@/components/ui/input";
+import { Checkbox, Field, Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
 
