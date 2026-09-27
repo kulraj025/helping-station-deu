@@ -11,6 +11,7 @@ import {
   ELIGIBILITY_STATUSES,
   EVENT_STATUSES,
   PARTICIPATION_STATUSES,
+  PASSWORD_MIN_LENGTH,
   VOLUNTEER_ROLES,
 } from "./constants";
 
@@ -150,19 +151,48 @@ export const claimCodeLoginSchema = z.object({
 
 export const adminLoginSchema = z.object({
   email: z.string().transform((v) => sanitizeText(v, 254).toLowerCase()).pipe(z.email()),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  // Deliberately not `min(PASSWORD_MIN_LENGTH)`: a login form that enforces a
+  // minimum rejects anyone whose password was set under an older policy, and
+  // the correct response to a rejected password is a wrong-password message,
+  // not a length complaint. Setting rules live in `setPasswordSchema` only.
+  password: z.string().min(1, "Enter your password").max(200),
   website: z.string().max(0).optional().or(z.literal("")),
 });
+
+/**
+ * First-run organiser account, created through `/setup`.
+ *
+ * `setupToken` is the deployment's `ADMIN_SETUP_TOKEN`. It is part of the body
+ * rather than a header so it arrives with the form post, and the action
+ * re-checks it server-side — never trust that the page was rendered because
+ * the token was right.
+ */
+export const firstAdminSchema = z
+  .object({
+    name: z.string().transform((v) => sanitizeText(v, 80)).pipe(z.string().min(2, "Enter your name")),
+    email: z
+      .string()
+      .transform((v) => sanitizeText(v, 254).toLowerCase())
+      .pipe(z.email("Enter a valid e-mail address")),
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+      .max(200),
+    confirmPassword: z.string(),
+    // Part of the body rather than a header, so it arrives with the form post.
+    setupToken: z.string().min(1, "Enter the setup token"),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
 
 export const setPasswordSchema = z
   .object({
     password: z
       .string()
-      .min(10, "Use at least 10 characters")
-      .max(200)
-      .regex(/[a-z]/, "Include a lower-case letter")
-      .regex(/[A-Z]/, "Include an upper-case letter")
-      .regex(/[0-9]/, "Include a number"),
+      .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+      .max(200),
     confirmPassword: z.string(),
   })
   .refine((value) => value.password === value.confirmPassword, {

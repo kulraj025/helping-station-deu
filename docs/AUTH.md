@@ -6,12 +6,13 @@ How sign-in works in Helping Station DEU, and what to do when it does not.
 
 | Method | Provider id | Who uses it | Created by |
 | --- | --- | --- | --- |
-| Organiser e-mail + password | `admin` | Staff only | Seed, or a manual row |
+| Organiser e-mail + password | `admin` | Staff only | First-run `/setup`, seed, or a manual row |
 | Student e-mail + password | `student` | Students | First registration |
 | Student claim code | `student` | Students who lost their password | First registration |
 | Google | `google` | Students | Provisioned on first sign-in |
 
-Organisers can only ever use e-mail and password. The Organiser tab on `/login` never renders an
+Organisers can only ever use e-mail and password. To create the first one without a terminal, see
+[Create the first admin](DEPLOYMENT.md#6-create-the-first-admin). The Organiser tab on `/login` never renders an
 OAuth button, and `authorize` in the `admin` provider independently re-checks that the row's role is
 `ADMIN`. Hiding the button is presentation; the role check in the provider is the control.
 

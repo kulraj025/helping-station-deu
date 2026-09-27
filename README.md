@@ -168,7 +168,7 @@ Other specifics:
 | Database | PostgreSQL via Prisma 7 | Real transactions for the draw; `jsonb` for event settings |
 | Auth | Auth.js 5 (JWT sessions) | Two credential providers: organiser password, student password or claim code |
 | Validation | Zod 4 | One schema per mutation; the server copy is authoritative |
-| Passwords | bcryptjs (cost 10) | Adequate, no native build step |
+| Passwords | bcryptjs (cost 10) | Length-only rule, 6 characters minimum. No composition requirement — see [Password policy](#password-policy) |
 | QR / poster | `qrcode` | SVG and PNG generation server-side |
 | Tests | Vitest 3 | Fast, no database required |
 
@@ -259,6 +259,7 @@ Change them before using this for anything real. The seed is idempotent, so it c
 | `DATA_RETENTION_DAYS` | no | `180` | Stated in the privacy page |
 | `AUTH_TRUST_HOST` | no | `true` | Required behind some proxies |
 | `AUTH_MAX_AGE` | no | `43200` | Session lifetime in seconds |
+| `ADMIN_SETUP_TOKEN` | no | empty | One-shot token that unlocks `/setup` to create the first organiser account. Empty means the page does not exist. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | — | Both needed to enable Google sign-in |
 | `GOOGLE_ALLOWED_DOMAIN` | no | empty | Restrict Google sign-in to one domain, e.g. `deu.ac.kr`. Empty means anyone may sign in. |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | no | — | Both needed to enable the captcha |
@@ -281,6 +282,27 @@ Students can authenticate in three ways. Organisers only ever use e-mail and pas
 | Password | an account row | The default. Created on first registration. |
 | Claim code | an account row + the one-time code | Shown once at registration, for people who lose the password. |
 | Google | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Any Google account, unless `GOOGLE_ALLOWED_DOMAIN` is set. |
+
+### Password policy
+
+A password must be at least `PASSWORD_MIN_LENGTH` characters — currently **6** — and that is the
+only rule. No upper-case letter, no digit, no symbol.
+
+The old policy demanded 10 characters with upper case, lower case and a digit. It was changed
+because composition rules push people towards `Password1!`, which is weaker than a plain passphrase,
+and because the people most likely to be setting a password here are doing it on a phone in a
+queue. Length is the property that actually matters.
+
+Two consequences worth knowing:
+
+- **The login forms enforce no minimum.** `adminLoginSchema` accepts any non-empty password. A login
+  form that applied a minimum would lock out anyone whose password was set under an older policy,
+  and would tell them their password was too short when it was actually correct. Only
+  `setPasswordSchema` decides what may be chosen.
+- **The rule lives in one place.** `PASSWORD_MIN_LENGTH` in `src/lib/constants.ts`. Change it there
+  and the schema, the hint text and the live checklist all follow.
+
+See `docs/DESIGN.md` for the reasoning and `tests/password-policy.test.ts` for the tests that pin it.
 
 ### How the OAuth buttons behave
 

@@ -311,4 +311,35 @@ export async function setUserPassword(userId: string, password: string): Promise
   });
 }
 
+/**
+ * Create a password account from outside the registration flow.
+ *
+ * Used by the first-run setup at `/setup` to mint the very first `ADMIN` row.
+ * The `studentId` and `department` columns are required and non-null, and an
+ * organiser has neither a student number nor a faculty, so they get a stable
+ * placeholder derived from the e-mail. If the same address ever registers as a
+ * student later, the registration flow reuses this row rather than creating a
+ * second one, because the e-mail is unique.
+ */
+export async function createUserWithPassword(input: {
+  email: string;
+  name: string;
+  password: string;
+  role: "STUDENT" | "ADMIN";
+}): Promise<{ id: string }> {
+  const created = await prisma.user.create({
+    data: {
+      email: input.email,
+      name: input.name,
+      role: input.role,
+      passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
+      studentId: `${input.role}_${input.email.slice(0, 8).toUpperCase()}`,
+      department: input.role === "ADMIN" ? "Organiser" : "Unknown",
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  return created;
+}
+
 export type { EventWithSettings };

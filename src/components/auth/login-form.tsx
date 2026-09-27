@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AlertCircle, Chrome, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound } from "lucide-react";
+import { AlertCircle, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { GoogleSignInButton, SignInDivider } from "@/components/ui/google-button";
 import { Spinner } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +62,10 @@ export function LoginForm({
         : null,
   );
   const [pending, startTransition] = useTransition();
+  // Tracked apart from `pending`: that flag is also set while the e-mail form
+  // is submitting, and a Google button that read "Opening Google…" at that
+  // moment would be lying about what is happening.
+  const [oauthPending, setOauthPending] = useState(false);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,6 +95,7 @@ export function LoginForm({
 
   function handleOAuthSignIn(provider: "google") {
     setError(null);
+    setOauthPending(true);
     startTransition(async () => {
       await signIn(provider, { callbackUrl: mode === "organiser" ? "/admin" : callbackUrl });
     });
@@ -107,50 +114,9 @@ export function LoginForm({
           </p>
         </div>
 
-        {/* Google sign-in. Student tab only — organisers always sign in with
-            e-mail and password. Rendered only when the provider is configured. */}
-        {mode === "student" && googleEnabled ? (
-          <div className="mt-6 space-y-2.5">
-            <button
-              type="button"
-              onClick={() => handleOAuthSignIn("google")}
-              disabled={pending}
-              className="flex w-full items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-leaf-300 hover:bg-slate-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Chrome className="h-4 w-4" aria-hidden="true" />
-              <span>Continue with Google</span>
-            </button>
-
-            <p className="flex items-center gap-3 pt-1 text-xs font-semibold text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
-              or use your own account
-              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
-            </p>
-            {allowedDomain ? (
-              <p className="text-center text-xs text-slate-500">
-                Google sign-in is limited to{" "}
-                <span className="font-semibold text-slate-600">{allowedDomain}</span> addresses.
-              </p>
-            ) : (
-              <p className="text-center text-xs text-slate-500">
-                Any Google account can sign in. You can fill in your department later.
-              </p>
-            )}
-          </div>
-        ) : null}
-
-        {reason === "auth" ? (
-          <div className="mt-6 rounded-full bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="alert">
-            Please sign in to continue to that page.
-          </div>
-        ) : null}
-        {error ? (
-          <div className="mt-6 rounded-full bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-            {error}
-          </div>
-        ) : null}
-
-        {/* mode tabs */}
+        {/* Which kind of account you are decides everything below it — whether
+            Google is offered at all, and where you land afterwards — so it is
+            asked before either sign-in method, not wedged between them. */}
         <div
           className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1"
           role="tablist"
@@ -187,11 +153,51 @@ export function LoginForm({
           })}
         </div>
 
+        {reason === "auth" ? (
+          <div className="mt-6 rounded-full bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="alert">
+            Please sign in to continue to that page.
+          </div>
+        ) : null}
+        {error ? (
+          <div className="mt-6 rounded-full bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        {/* Google sign-in. Student tab only — organisers always sign in with
+            e-mail and password. Rendered only when the provider is configured.
+            This is the shortest path in for a new visitor, so it gets the top
+            position; the password form below is the fallback for people already
+            registered that way. */}
+        {mode === "student" && googleEnabled ? (
+          <div className="mt-6 space-y-4">
+            <GoogleSignInButton
+              onClick={() => handleOAuthSignIn("google")}
+              disabled={oauthPending}
+            >
+              {oauthPending ? "Opening Google…" : "Continue with Google"}
+            </GoogleSignInButton>
+
+            <SignInDivider>or use a password</SignInDivider>
+
+            <p className="text-center text-xs text-slate-500">
+              {allowedDomain ? (
+                <>
+                  Google sign-in is limited to{" "}
+                  <span className="font-semibold text-slate-600">{allowedDomain}</span> addresses.
+                </>
+              ) : (
+                <>Any Google account can sign in. You can add your department later.</>
+              )}
+            </p>
+          </div>
+        ) : null}
+
         <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
           {mode === "student" ? (
             <>
               <Field
-                label="University e-mail"
+                label="E-mail"
                 htmlFor="identifier"
                 required
                 hint="The address you used to register."
@@ -225,10 +231,9 @@ export function LoginForm({
                 </Field>
               ) : (
                 <Field label="Password" htmlFor="password" required>
-                  <Input
+                  <PasswordInput
                     id="password"
                     name="password"
-                    type="password"
                     autoComplete="current-password"
                     required
                   />
@@ -257,10 +262,9 @@ export function LoginForm({
                 />
               </Field>
               <Field label="Password" htmlFor="password" required>
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="current-password"
                   required
                 />

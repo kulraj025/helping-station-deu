@@ -132,4 +132,11 @@ export const LIMITS = {
   adminLogin: { key: "admin-login", limit: 5, windowSeconds: 15 * 60 },
   draw: { key: "draw", limit: 10, windowSeconds: 60 * 60 },
   export: { key: "export", limit: 30, windowSeconds: 60 * 60 },
+  /**
+   * First-run setup at `/setup`. Tight on purpose: the deployment's
+   * `ADMIN_SETUP_TOKEN` is the only thing standing between an anonymous
+   * visitor and an admin account, so a handful of wrong guesses per hour is
+   * all this needs to allow. It closes entirely once an admin exists.
+   */
+  adminSetup: { key: "admin-setup", limit: 5, windowSeconds: 60 * 60 },
 } as const;

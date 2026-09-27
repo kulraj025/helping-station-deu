@@ -160,8 +160,9 @@ describe("login schemas", () => {
     expect(studentLoginSchema.safeParse({ identifier: "a@deu.ac.kr", password: "" }).success).toBe(false);
   });
 
-  it("requires at least 8 characters for an admin password", () => {
-    expect(adminLoginSchema.safeParse({ email: "a@deu.ac.kr", password: "short" }).success).toBe(false);
+  it("does not apply a minimum length to an admin password", () => {
+    // The old rule was `min(8)` here. It is covered by the dedicated
+    // "password login is not gated on a minimum" block below.
     expect(adminLoginSchema.safeParse({ email: "a@deu.ac.kr", password: "longenough" }).success).toBe(true);
   });
 
@@ -171,21 +172,56 @@ describe("login schemas", () => {
     ).toBe(false);
   });
 
-  it("upper-cases a claim code and enforces its format", () => {
+  it("accepts a password of the minimum length", () => {
     const result = setPasswordSchema.safeParse({
-      password: "GoodPassword1",
-      confirmPassword: "GoodPassword1",
+      password: "abcdef",
+      confirmPassword: "abcdef",
     });
     expect(result.success).toBe(true);
   });
 
-  it("enforces password strength and confirmation", () => {
+  it("enforces only length, not character composition", () => {
+    // No upper case, no digits, no symbols. This is the whole point of the
+    // relaxed policy, so it is pinned by a test rather than left to drift.
+    for (const password of ["abcdef", "lowercase", "1234567", "!!!!!!!!", "한글비밀번호"]) {
+      expect(
+        setPasswordSchema.safeParse({ password, confirmPassword: password }).success,
+        `expected ${password} to be accepted`,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects a password shorter than the minimum", () => {
     expect(setPasswordSchema.safeParse({ password: "short", confirmPassword: "short" }).success).toBe(false);
-    expect(
-      setPasswordSchema.safeParse({ password: "alllowercase1", confirmPassword: "alllowercase1" }).success,
-    ).toBe(false);
+    expect(setPasswordSchema.safeParse({ password: "", confirmPassword: "" }).success).toBe(false);
+  });
+
+  it("rejects a mismatched confirmation", () => {
     expect(
       setPasswordSchema.safeParse({ password: "GoodPassword1", confirmPassword: "GoodPassword2" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("password login is not gated on a minimum", () => {
+  // Regression guard. A login form that enforces a minimum rejects anyone
+  // whose password was set under an older, stricter policy, and the resulting
+  // "too short" message is misleading: the password is correct, it is just
+  // shorter than the form wants. Both login schemas therefore accept anything
+  // non-empty, and only `setPasswordSchema` decides what may be chosen.
+  it("lets an admin sign in with a short password", () => {
+    for (const password of ["a", "abc", "1234"]) {
+      expect(
+        adminLoginSchema.safeParse({ email: "a@deu.ac.kr", password }).success,
+        `expected login with ${password} to be attempted`,
+      ).toBe(true);
+    }
+  });
+
+  it("still rejects an empty password", () => {
+    expect(adminLoginSchema.safeParse({ email: "a@deu.ac.kr", password: "" }).success).toBe(false);
+    expect(
+      studentLoginSchema.safeParse({ identifier: "a@deu.ac.kr", password: "" }).success,
     ).toBe(false);
   });
 });

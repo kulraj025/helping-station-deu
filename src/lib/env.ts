@@ -60,6 +60,18 @@ export const env = {
   authTrustHost: bool(process.env.AUTH_TRUST_HOST, true),
   authMaxAge: int(process.env.AUTH_MAX_AGE, 60 * 60 * 12),
 
+  /**
+   * One-shot token that unlocks `/setup`, the page that creates the very first
+   * organiser account.
+   *
+   * Empty by default, and the page refuses to render when it is empty, so a
+   * deployment that never sets it has no way to gain an admin through the web
+   * at all. The setup route also stops existing once an admin exists, so this
+   * is a bootstrap door, not a permanent one. Set it, create the account, then
+   * delete the variable and redeploy.
+   */
+  adminSetupToken: (process.env.ADMIN_SETUP_TOKEN ?? "").trim(),
+
   databaseUrl:
     process.env.DATABASE_URL ??
     "postgresql://postgres:postgres@127.0.0.1:5433/helpingstation",

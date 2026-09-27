@@ -35,6 +35,17 @@ So remapping `--color-white` under a `.dark` scope moves all 100 uses of `bg-whi
 practical consequence: **dark mode cannot regress by forgetting a component**, which is the usual
 failure mode of the `dark:`-variant approach.
 
+### The one deliberate exception: Google sign-in
+
+The Google button in [`src/components/ui/google-button.tsx`](../src/components/ui/google-button.tsx)
+keeps its white background, hairline border and near-black label in **both** themes. That is not an
+oversight.
+
+Google publishes hard rules for the sign-in button, and recolouring it to match a site is a documented
+reason an OAuth consent screen gets rejected. Following the palette here would have looked more
+consistent and been less correct. The mark is the four-colour **G**; the `Chrome` icon from lucide
+that it replaced is the browser logo, so a sign-in button wearing it reads as "open in browser".
+
 ### Why not `dark:` variants everywhere
 
 There are roughly 400 colour utilities across the components. Expressing dark mode as `dark:` classes
@@ -131,3 +142,21 @@ of the stylesheet. If you add one, add its dark version too.
 2. Use the nearest existing ramp step rather than inventing a new one.
 3. Run `npm run build && npm run audit:contrast`.
 4. If the token is used as both a surface and ink, add a pin as described above.
+
+## Password fields
+
+[`src/components/ui/password-input.tsx`](../src/components/ui/password-input.tsx) owns password
+entry, and three things about it are load-bearing:
+
+- **A show/hide toggle.** People mistype passwords constantly on a phone, and a field that only ever
+  renders dots gives them nothing to check against. The toggle is a real `<button>` rather than a CSS
+  trick, so it is keyboard reachable and announced, and it carries `aria-pressed` to expose its state.
+  It does not steal focus, and it does not change the input `type` while the field holds focus —
+  flipping `type` mid-typing moves the caret to the end on some mobile browsers.
+- **A checklist, not a strength bar.** The only rule is length, so the feedback says exactly one
+  thing: whether the minimum is met. A coloured "strong/weak" bar has to guess, and a bar that turns
+  red on somebody's reasonable passphrase is just noise. A checklist cannot be wrong.
+- **A match hint on the second field**, shown only once something has been typed there.
+
+The live regions are `aria-live="polite"`, which matters because the text updates on every keystroke
+and an assertive region would talk over the person typing.

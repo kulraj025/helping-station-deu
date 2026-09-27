@@ -63,6 +63,20 @@ export const ENTRY_NUMBER_PAD = 4;
 export const APP_NAME = "Helping Station DEU";
 export const APP_TAGLINE = "Serving Beyond Borders — Together We Grow.";
 
+/**
+ * Shortest password a person may choose.
+ *
+ * Deliberately length-only: no upper-case, lower-case or digit requirement.
+ * This is a low-stakes volunteer sign-up, and the people most likely to be
+ * setting a password are doing it on a phone in a queue. A composition rule
+ * pushes people towards `Password1!`, which is far weaker than a long
+ * passphrase, so length is the only rule enforced.
+ *
+ * Changing this changes what people may set, so the login schemas must accept
+ * anything at least this long — see `adminLoginSchema` in `src/lib/validation.ts`.
+ */
+export const PASSWORD_MIN_LENGTH = 6;
+
 export const VOLUNTEER_ROLES = [
   "Clean-up team",
   "Recycling & waste separation",
@@ -151,6 +165,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "winner.notified": "Winner notification queued",
   "report.exported": "Data exported",
   "auth.admin_login": "Organiser signed in",
+  "auth.admin_bootstrapped": "First organiser account created",
   "event.qr_downloaded": "QR code downloaded",
   "event.poster_downloaded": "Poster downloaded",
 };

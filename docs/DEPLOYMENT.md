@@ -96,9 +96,42 @@ short version:
 
 ### 6. Create the first admin
 
-The Organiser tab needs a `User` row with `role = 'ADMIN'` and a bcrypt hash for the password.
+The Organiser area at `/admin` is unreachable until a `User` row with `role = 'ADMIN'` exists. This
+is the browser-only way to create the first one — no terminal, no SQL console.
 
-Generate the hash locally:
+1. In your hosting provider's environment settings, add:
+
+   | Key | Value |
+   | --- | --- |
+   | `ADMIN_SETUP_TOKEN` | any long random string, e.g. `openssl rand -base64 32` |
+
+   Set it for **Production** and deploy.
+2. Open `https://<your-domain>/setup`.
+3. Enter the token and your name, e-mail and password. Submit.
+4. You land on `/login`. Use the **Organiser** tab.
+5. **Delete `ADMIN_SETUP_TOKEN` and deploy again.**
+
+The password needs at least `PASSWORD_MIN_LENGTH` characters (6) and no particular character
+types. The e-mail must not already exist as a student account.
+
+#### Why it is safe
+
+- **It fails closed.** With `ADMIN_SETUP_TOKEN` unset, `/setup` does not render and the action
+  refuses. A deployment that never sets it has no web route to an admin account at all.
+- **It is one-shot.** `/setup` stops rendering as soon as one admin exists, so a leaked token stops
+  mattering after first use. Step 5 removes it entirely.
+- **It is rate limited** to 5 attempts per hour per IP address.
+- **The token is compared in constant time**, so a wrong guess reveals nothing about how wrong it
+  was. Both sides are hashed to a fixed length first, because a length mismatch would otherwise
+  throw and leak the secret's length.
+- The action **re-checks every condition itself** rather than trusting that the page rendered, since
+  a server action is a public endpoint anyone can POST to directly.
+- The creation is written to the audit log as `auth.admin_bootstrapped`.
+
+#### The older SQL route
+
+If you would rather not add an environment variable, insert the row directly. Generate the bcrypt
+hash locally:
 
 ```bash
 npx -e "console.log(require('bcryptjs').hashSync('YourSecurePassword', 10))"

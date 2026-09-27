@@ -10,8 +10,10 @@ import {
 } from "@/server/actions/account-actions";
 import { initialAccountState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
-import { Field, FormAlert, Input } from "@/components/ui/input";
+import { FormAlert } from "@/components/ui/input";
+import { PasswordFieldPair } from "@/components/ui/password-input";
 import { Spinner } from "@/components/ui/feedback";
+import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
 import { useToast } from "@/components/ui/toast";
 
 function SubmitButton({ label, pendingLabel, variant = "primary" }: {
@@ -38,7 +40,7 @@ export function SetPasswordPanel() {
       </h2>
       <p className="mt-1.5 text-sm text-slate-600">
         You signed in with a one-time claim code. Choose a password so you do not need the code
-        again. At least 10 characters with upper case, lower case and a number.
+        again. At least {PASSWORD_MIN_LENGTH} characters — any characters you like.
       </p>
 
       {state.status === "success" ? (
@@ -51,36 +53,14 @@ export function SetPasswordPanel() {
         </FormAlert>
       ) : null}
 
-      <form action={formAction} className="mt-5 space-y-4">
-        <Field
-          label="New password"
-          htmlFor="new-password"
-          required
+      <form action={formAction} className="mt-5">
+        <PasswordFieldPair
           error={state.fieldErrors?.password?.[0]}
-        >
-          <Input
-            id="new-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-          />
-        </Field>
-        <Field
-          label="Confirm password"
-          htmlFor="confirm-password"
-          required
-          error={state.fieldErrors?.confirmPassword?.[0]}
-        >
-          <Input
-            id="confirm-password"
-            name="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-          />
-        </Field>
-        <SubmitButton label="Save password" pendingLabel="Saving…" />
+          confirmError={state.fieldErrors?.confirmPassword?.[0]}
+        />
+        <div className="mt-5">
+          <SubmitButton label="Save password" pendingLabel="Saving…" />
+        </div>
       </form>
     </section>
   );

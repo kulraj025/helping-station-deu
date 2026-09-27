@@ -66,6 +66,7 @@ export const AUDIT_ACTIONS = {
   winnerNotified: "winner.notified",
   exportGenerated: "report.exported",
   adminLogin: "auth.admin_login",
+  adminBootstrapped: "auth.admin_bootstrapped",
   qrDownloaded: "event.qr_downloaded",
   posterDownloaded: "event.poster_downloaded",
 } as const;
