@@ -214,6 +214,10 @@ export function UserList({ users, currentAdminId }: { users: UserRow[]; currentA
     );
   }
 
+  const organisers = users.filter((user) => user.role === "ADMIN").length;
+  const participants = users.length - organisers;
+  const registrations = users.reduce((total, user) => total + user.registrations, 0);
+
   return (
     <div className="space-y-3">
       {state.status === "success" ? (
@@ -222,6 +226,35 @@ export function UserList({ users, currentAdminId }: { users: UserRow[]; currentA
         </FormAlert>
       ) : state.status === "error" ? (
         <FormAlert tone="error">{state.message}</FormAlert>
+      ) : null}
+
+      {/*
+       * The count leads, because "how many people are on this site" is the
+       * question an organiser opens this page with, and the answer was previously
+       * only available by counting rows. Splitting organisers out matters: they
+       * are accounts too, but they are not participants, and lumping them in
+       * would overstate the number that matters on event day.
+       */}
+      <dl className="grid grid-cols-3 gap-2 text-center">
+        {[
+          { label: "Accounts", value: users.length },
+          { label: "Participants", value: participants },
+          { label: "Registrations", value: registrations },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-xl bg-slate-50 px-2 py-3">
+            <dd className="font-display text-2xl font-extrabold text-leaf-900">{stat.value}</dd>
+            <dt className="mt-0.5 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">
+              {stat.label}
+            </dt>
+          </div>
+        ))}
+      </dl>
+
+      {organisers > 1 ? (
+        <p className="text-xs text-slate-500">
+          {organisers} organiser accounts exist. The last one cannot be deleted, so the site always
+          stays administrable.
+        </p>
       ) : null}
 
       <ul className="space-y-2">
