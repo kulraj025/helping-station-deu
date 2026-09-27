@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth-helpers";
 import { LoginForm } from "@/components/auth/login-form";
 import { Reveal } from "@/components/ui/reveal";
 import { DemoCredentials } from "@/components/auth/demo-credentials";
-import { env } from "@/lib/env";
+import { env, isGoogleEnabled, isKakaoEnabled } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -29,6 +29,17 @@ export default async function LoginPage({
   // on screen, and impossible to submit.
   const callbackUrl = typeof params.callbackUrl === "string" ? params.callbackUrl : undefined;
   const reason = typeof params.reason === "string" ? params.reason : undefined;
+  // NextAuth bounces failed OAuth attempts back here with `?error=<code>`.
+  const oauthError = typeof params.error === "string" ? params.error : undefined;
+
+  /**
+   * Resolved here, on the server, and handed to the form as a plain boolean.
+   * The form is a client component, so if it read `process.env.GOOGLE_CLIENT_ID`
+   * itself the value would be `undefined` in the browser bundle: the button
+   * would render during SSR and then vanish on hydration.
+   */
+  const googleEnabled = isGoogleEnabled();
+  const kakaoEnabled = isKakaoEnabled();
 
   return (
     <section className="bg-canopy relative overflow-hidden py-12 sm:py-16">
@@ -39,7 +50,13 @@ export default async function LoginPage({
       />
       <div className="container-page relative flex flex-col items-center">
         <Reveal from="up" className="w-full">
-          <LoginForm callbackUrl={callbackUrl} reason={reason} />
+          <LoginForm
+            callbackUrl={callbackUrl}
+            reason={reason}
+            googleEnabled={googleEnabled}
+            kakaoEnabled={kakaoEnabled}
+            initialError={oauthError}
+          />
         </Reveal>
         {env.demoMode ? (
           <Reveal from="up" delay={120} className="mt-6 w-full">

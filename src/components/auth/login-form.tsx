@@ -3,32 +3,53 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AlertCircle, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound, Chrome } from "lucide-react";
+import { AlertCircle, Chrome, KeyRound, Leaf, Lock, LogIn, MessageCircle, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, FormAlert, Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/feedback";
-import { cn, isGoogleEnabled } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type Mode = "student" | "organiser";
 
 export interface LoginFormProps {
   callbackUrl?: string;
   reason?: string;
+  /**
+   * Whether the Google provider is configured on the server. Passed in by the
+   * login page rather than read from `process.env` here: this file is a client
+   * component, and non-`NEXT_PUBLIC_` variables are stripped from the browser
+   * bundle, which would drop the button on hydration.
+   */
+  googleEnabled?: boolean;
+  /** Whether the KakaoTalk provider is configured on the server. */
+  kakaoEnabled?: boolean;
+  /** Error code handed over from the `?error=` query string. */
+  initialError?: string;
 }
 
 const messages: Record<string, string> = {
   CredentialsSignin: "That e-mail address, password or claim code did not match our records.",
   AccessDenied: "You do not have permission to open that page.",
   rate_limited: "Too many attempts. Wait a few minutes and try again.",
+  OAuthEmailMissing:
+    "That account did not share an e-mail address. Grant e-mail access and try again.",
+  OAuthDomainNotAllowed: "Only @deu.ac.kr accounts can sign in here.",
 };
 
-export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) {
+export function LoginForm({
+  callbackUrl = "/account",
+  reason,
+  googleEnabled = false,
+  kakaoEnabled = false,
+  initialError,
+}: LoginFormProps) {
   const router = useRouter();
-  const googleEnabled = isGoogleEnabled();
 
   const [mode, setMode] = useState<Mode>("student");
   const [useClaimCode, setUseClaimCode] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    initialError ? (messages[initialError] ?? null) : null,
+  );
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -57,9 +78,10 @@ export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) 
     });
   }
 
-  function handleGoogleSignIn() {
+  function handleOAuthSignIn(provider: "google" | "kakao") {
+    setError(null);
     startTransition(async () => {
-      await signIn("google", { callbackUrl: mode === "organiser" ? "/admin" : callbackUrl });
+      await signIn(provider, { callbackUrl: mode === "organiser" ? "/admin" : callbackUrl });
     });
   }
 
@@ -76,18 +98,45 @@ export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) 
           </p>
         </div>
 
-        {/* Google Sign-In Button */}
-        {googleEnabled && mode === "student" && (
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={pending}
-            className="mt-6 w-full flex items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:bg-slate-50 hover:border-leaf-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Chrome className="h-4 w-4" aria-hidden="true" />
-            <span>Continue with Google (@deu.ac.kr)</span>
-          </button>
-        )}
+        {/* OAuth buttons. Shown on the Student tab only — organisers always
+            sign in with e-mail and password. */}
+        {mode === "student" && (googleEnabled || kakaoEnabled) ? (
+          <div className="mt-6 space-y-2.5">
+            {googleEnabled ? (
+              <button
+                type="button"
+                onClick={() => handleOAuthSignIn("google")}
+                disabled={pending}
+                className="flex w-full items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:border-leaf-300 hover:bg-slate-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Chrome className="h-4 w-4" aria-hidden="true" />
+                <span>Continue with Google</span>
+              </button>
+            ) : null}
+
+            {kakaoEnabled ? (
+              <button
+                type="button"
+                onClick={() => handleOAuthSignIn("kakao")}
+                disabled={pending}
+                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-bold text-[#191600] transition hover:bg-[#f5d900] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#191600] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                <span>Continue with KakaoTalk</span>
+              </button>
+            ) : null}
+
+            <p className="flex items-center gap-3 pt-1 text-xs font-semibold text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+              or use your university account
+              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+            </p>
+            <p className="text-center text-xs text-slate-500">
+              Google and KakaoTalk sign-in is limited to{" "}
+              <span className="font-semibold text-slate-600">@deu.ac.kr</span> addresses.
+            </p>
+          </div>
+        ) : null}
 
         {reason === "auth" ? (
           <div className="mt-6 rounded-full bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="alert">

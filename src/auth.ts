@@ -1,6 +1,7 @@
 import "server-only";
 import NextAuth, { type DefaultSession } from "next-auth";
 import Google from "next-auth/providers/google";
+import Kakao from "next-auth/providers/kakao";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -177,10 +178,8 @@ const googleProvider = Google({
     },
   },
   profile(profile) {
-    // Only allow @deu.ac.kr emails
-    if (!profile.email?.endsWith("@deu.ac.kr")) {
-      throw new Error("Only @deu.ac.kr emails are allowed");
-    }
+    // Domain enforcement lives in the `signIn` callback so Google and Kakao
+    // share one code path; this only normalises the returned identity.
     return {
       id: profile.sub,
       email: profile.email,
@@ -189,6 +188,17 @@ const googleProvider = Google({
     };
   },
 });
+
+const kakaoProvider = Kakao({
+  clientId: env.kakaoClientId,
+  clientSecret: env.kakaoClientSecret || undefined,
+});
+
+/** OAuth providers that may provision a STUDENT account on first sign-in. */
+const OAUTH_STUDENT_PROVIDERS = new Set(["google", "kakao"]);
+
+/** Only university accounts may self-register through OAuth. */
+const ALLOWED_EMAIL_DOMAIN = "@deu.ac.kr";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: env.authSecret,
@@ -199,41 +209,73 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     adminProvider,
     studentProvider,
     ...(env.googleClientId && env.googleClientSecret ? [googleProvider] : []),
+    ...(env.kakaoClientId ? [kakaoProvider] : []),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        // Check if user exists in our DB
-        const existingUser = await prisma.user.findUnique({ where: { email: user.email! } });
-        if (!existingUser) {
-          // Create student user from Google profile
-          const email = user.email!;
-          const name = user.name ?? profile?.name ?? email.split("@")[0] ?? "Student";
-          const googleId = user.id ?? profile?.sub ?? crypto.randomUUID();
-          const studentId = `GOOGLE_${googleId.slice(0, 8)}`;
-          const department = "Unknown"; // Will need to be updated by admin
-          
-          await prisma.user.create({
-            data: {
-              id: `google_${googleId}`,
-              email,
-              name,
-              studentId,
-              department,
-              role: "STUDENT",
-              passwordHash: null, // No password for OAuth users
-              isActive: true,
-              isDemo: false,
-            },
-          });
-        } else {
-          // Update last login
-          await prisma.user.update({
-            where: { email: user.email! },
-            data: { lastLoginAt: new Date() },
-          });
-        }
+      const providerId = account?.provider;
+      if (!providerId || !OAUTH_STUDENT_PROVIDERS.has(providerId)) return true;
+
+      // Kakao only returns an e-mail when the user granted the account_email
+      // consent scope, so resolve it from the profile before deciding.
+      const rawProfile = profile as Record<string, unknown> | undefined;
+      const kakaoAccount =
+        rawProfile && typeof rawProfile.kakao_account === "object"
+          ? (rawProfile.kakao_account as Record<string, unknown>)
+          : undefined;
+      const email = (
+        user.email ??
+        (typeof kakaoAccount?.email === "string" ? kakaoAccount.email : undefined) ??
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!email) {
+        return `/login?error=OAuthEmailMissing&provider=${providerId}`;
       }
+      if (!email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+        return `/login?error=OAuthDomainNotAllowed&provider=${providerId}`;
+      }
+
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+
+      if (existingUser) {
+        // Known account: just refresh the last-seen timestamp.
+        await prisma.user.update({
+          where: { email },
+          data: { lastLoginAt: new Date() },
+        });
+        return true;
+      }
+
+      const oauthId =
+        user.id ??
+        (typeof rawProfile?.sub === "string" ? rawProfile.sub : undefined) ??
+        crypto.randomUUID();
+      const name =
+        user.name ??
+        (typeof kakaoAccount?.profile_nickname === "string"
+          ? (kakaoAccount.profile_nickname as string)
+          : undefined) ??
+        email.split("@")[0] ??
+        "Student";
+
+      // First sign-in: provision a passwordless STUDENT account.
+      await prisma.user.create({
+        data: {
+          id: `${providerId}_${oauthId}`,
+          email,
+          name,
+          studentId: `${providerId}_${oauthId.slice(0, 8)}`.toUpperCase(),
+          department: "Unknown",
+          role: "STUDENT",
+          // OAuth accounts authenticate through the provider, never a local password.
+          passwordHash: null,
+          isActive: true,
+          isDemo: false,
+        },
+      });
       return true;
     },
     async jwt({ token, user, account }) {
@@ -243,8 +285,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.department = user.department;
         token.studentId = user.studentId;
       }
-      if (account?.provider === "google") {
-        token.provider = "google";
+      if (account?.provider && OAUTH_STUDENT_PROVIDERS.has(account.provider)) {
+        token.provider = account.provider;
       }
       return token;
     },
@@ -260,3 +302,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+

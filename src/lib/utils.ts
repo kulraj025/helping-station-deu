@@ -1,6 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { env } from "@/lib/env";
 
 /** Merge conditional class names, resolving Tailwind conflicts. */
 export function cn(...inputs: ClassValue[]) {
@@ -35,9 +34,4 @@ export function slugify(value: string, maxLength = 80): string {
  */
 export function confirmationCode(eventSlug: string): string {
   return eventSlug.replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 6).padEnd(6, "X");
-}
-
-/** Check if Google OAuth is configured and enabled. */
-export function isGoogleEnabled(): boolean {
-  return env.googleClientId.length > 0 && env.googleClientSecret.length > 0;
 }

@@ -87,6 +87,10 @@ export const env = {
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
 
+  // KakaoTalk OAuth
+  kakaoClientId: process.env.KAKAO_CLIENT_ID ?? "",
+  kakaoClientSecret: process.env.KAKAO_CLIENT_SECRET ?? "",
+
   warnings,
 } as const;
 
@@ -98,3 +102,9 @@ export const isDistributedRateLimit = () =>
   env.upstashRestUrl.length > 0 && env.upstashRestToken.length > 0;
 export const isGoogleEnabled = () =>
   env.googleClientId.length > 0 && env.googleClientSecret.length > 0;
+
+/**
+ * Kakao only requires a secret when the "use client secret" toggle is on in
+ * the Kakao console, so the id alone is enough to enable the provider.
+ */
+export const isKakaoEnabled = () => env.kakaoClientId.length > 0;
