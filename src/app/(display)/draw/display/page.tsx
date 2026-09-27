@@ -3,6 +3,8 @@ import { getPublicDrawState } from "@/server/services/draw-service";
 import { DrawStage } from "@/components/public/draw-stage";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getSiteSettings } from "@/server/services/site-settings-service";
+import { SectionClosed } from "@/components/site/section-closed";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,14 @@ export default async function DrawDisplayPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const site = await getSiteSettings();
+  // Shares the `draw` switch with /draw, so closing one closes both. A
+  // projector left running in a hall must not keep showing a draw that has
+  // been called off.
+  if (!site.siteOpen || !site.drawOpen) {
+    return <SectionClosed sectionLabel="The live draw" note={site.closedNote} />;
+  }
+
   const params = await searchParams;
   const requested = typeof params.event === "string" ? params.event : undefined;
   const event = requested ? await resolveEvent(requested) : await getPrimaryEvent();

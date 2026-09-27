@@ -67,6 +67,9 @@ export const AUDIT_ACTIONS = {
   exportGenerated: "report.exported",
   adminLogin: "auth.admin_login",
   adminBootstrapped: "auth.admin_bootstrapped",
+  siteSettingsChanged: "admin.site_settings_changed",
+  userDeleted: "admin.user_deleted",
+  allParticipantsDeleted: "admin.all_participants_deleted",
   qrDownloaded: "event.qr_downloaded",
   posterDownloaded: "event.poster_downloaded",
 } as const;

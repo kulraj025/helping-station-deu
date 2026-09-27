@@ -7,6 +7,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/feedback";
 import { Reveal } from "@/components/ui/reveal";
+import { getSiteSettings } from "@/server/services/site-settings-service";
+import { SectionClosed } from "@/components/site/section-closed";
 import { formatDateTime, formatEventDate } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -24,6 +26,11 @@ export default async function WinnersPage({
 }) {
   const params = await searchParams;
   const requested = typeof params.event === "string" ? params.event : undefined;
+
+  const site = await getSiteSettings();
+  if (!site.siteOpen || !site.winnersOpen) {
+    return <SectionClosed sectionLabel="Winners" note={site.closedNote} />;
+  }
 
   // Either a specific event, or every completed event that publishes winners.
   const events = requested

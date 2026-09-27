@@ -6,6 +6,8 @@ import { EventSummaryCard, RegistrationForm } from "@/components/public/register
 import { ButtonLink } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { env } from "@/lib/env";
+import { getSiteSettings } from "@/server/services/site-settings-service";
+import { SectionClosed } from "@/components/site/section-closed";
 
 export const metadata: Metadata = {
   title: "Register",
@@ -23,6 +25,13 @@ export default async function RegisterPage({
 }) {
   const params = await searchParams;
   const requested = typeof params.event === "string" ? params.event : undefined;
+
+  // Checked before anything else so a closed registration page costs one query
+  // and never touches the event.
+  const site = await getSiteSettings();
+  if (!site.siteOpen || !site.registerOpen) {
+    return <SectionClosed sectionLabel="Registration" note={site.closedNote} />;
+  }
 
   const event = requested ? await resolveEvent(requested) : await getPrimaryEvent();
 

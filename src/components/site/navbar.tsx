@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { Leaf, Menu, X, UserRound, ShieldCheck, Ticket, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const links = [
   { href: "/", label: "Home" },
@@ -103,8 +102,6 @@ export function SiteNavbar({ role, name }: { role: "STUDENT" | "ADMIN" | null; n
             <span className="hidden sm:inline">Register</span>
           </Link>
 
-          <ThemeToggle />
-
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
@@ -149,10 +146,6 @@ export function SiteNavbar({ role, name }: { role: "STUDENT" | "ADMIN" | null; n
                 </Link>
               </li>
             ) : null}
-            <li className="flex items-center justify-between rounded-xl px-4 py-3">
-              <span className="text-base font-semibold text-slate-700">Dark theme</span>
-              <ThemeToggle className="h-9 w-9" />
-            </li>
           </ul>
         </div>
       ) : null}

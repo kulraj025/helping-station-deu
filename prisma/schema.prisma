@@ -358,3 +358,36 @@ model Notification {
   @@index([status, sendAfter])
   @@index([eventId, type])
 }
+
+/// Site-wide switches an organiser can flip without a deploy.
+///
+/// Deliberately a single row with `id = 1` rather than a key/value table: the
+/// set of switches is fixed and known, so a fixed set of columns is easier to
+/// read, easier to validate, and impossible to typo. `getSiteSettings()`
+/// upserts the row on first read, so no seeding step is required and a fresh
+/// database is fully open by default.
+///
+/// A switch here is a *master* control. The per-event settings on
+/// `Event.settings` (winners visible, draw screen visible, …) still apply, but
+/// a closed section here overrides them — one off switch should mean "closed",
+/// not "closed only if no event says otherwise".
+model SiteSettings {
+  id   Int @id @default(1)
+  /// Take the whole public site offline, for maintenance or a closed season.
+  siteOpen Boolean @default(true)
+  /// /register
+  registerOpen Boolean @default(true)
+  /// /winners
+  winnersOpen Boolean @default(true)
+  /// /draw and the public draw display screen
+  drawOpen Boolean @default(true)
+  /// /rules
+  rulesOpen Boolean @default(true)
+  /// Show the registered-participant count on public pages.
+  showCount Boolean @default(true)
+  /// Optional note shown on every closed section, e.g. "Back on 3 March."
+  closedNote String @default("")
+  /// Who last changed these, for the audit trail.
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

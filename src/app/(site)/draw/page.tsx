@@ -5,6 +5,8 @@ import { DrawStage } from "@/components/public/draw-stage";
 import { Reveal } from "@/components/ui/reveal";
 import Link from "next/link";
 import { AlertTriangle, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { getSiteSettings } from "@/server/services/site-settings-service";
+import { SectionClosed } from "@/components/site/section-closed";
 
 export const metadata: Metadata = {
   title: "Lucky draw — live",
@@ -22,6 +24,11 @@ export default async function DrawPage({
 }) {
   const params = await searchParams;
   const requested = typeof params.event === "string" ? params.event : undefined;
+
+  const site = await getSiteSettings();
+  if (!site.siteOpen || !site.drawOpen) {
+    return <SectionClosed sectionLabel="The live draw" note={site.closedNote} />;
+  }
   const event = requested ? await resolveEvent(requested) : await getPrimaryEvent();
 
   if (!event) {

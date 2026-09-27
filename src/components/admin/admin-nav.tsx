@@ -12,6 +12,7 @@ import {
   ScrollText,
   Settings2,
   Shuffle,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/admin/winners", label: "Winners", icon: Award, description: "Claims & corrections" },
   { href: "/admin/audit", label: "Audit log", icon: ScrollText, description: "Every action" },
   { href: "/admin/export", label: "Export", icon: FileDown, description: "CSV & reports" },
+  { href: "/admin/controls", label: "Site controls", icon: SlidersHorizontal, description: "Close sections" },
   { href: "/admin/settings", label: "Settings", icon: Settings2, description: "Configuration" },
 ];
 

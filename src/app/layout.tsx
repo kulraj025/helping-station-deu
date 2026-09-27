@@ -54,13 +54,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-/**
- * Applies the stored theme before the first paint. This has to be an inline
- * script rather than a component: a React effect runs after the browser has
- * already painted, which shows the user a flash of the light theme.
- */
-const themeScript = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.classList.toggle("dark",t==="dark")}catch(e){}})();`;
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The nav shows an account link, so the session is read once at the root.
   const user = await getCurrentUser();
@@ -68,17 +61,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // `data-scroll-behavior` is how Next.js is told we handle smooth scrolling
     // ourselves, so it stops patching it during route transitions.
+    //
+    // `dark` is hard-coded on the server rather than applied by a script. There
+    // is no theme choice to honour, so there is nothing to decide after the
+    // HTML arrives, and nothing that can be decided late and get it wrong: no
+    // flash of a light theme, no `suppressHydrationWarning`, and no dependence
+    // on `localStorage` (which fails outright in private browsing and is
+    // therefore a way for the page to render in the wrong theme). The dark
+    // tokens live in a `@media screen` block in globals.css, so printing still
+    // falls back to the light palette.
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      // The script above mutates this class, so the server HTML and the DOM
-      // legitimately disagree here.
-      suppressHydrationWarning
-      className={`${inter.variable} ${sora.variable}`}
+      className={`dark ${inter.variable} ${sora.variable}`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main"

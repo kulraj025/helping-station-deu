@@ -9,6 +9,8 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import { getSiteSettings } from "@/server/services/site-settings-service";
+import { SectionClosed } from "@/components/site/section-closed";
 import { ButtonLink } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { LeafDivider } from "@/components/site/illustrations";
@@ -19,7 +21,10 @@ export const metadata: Metadata = {
     "The exact rules of the Helping Station DEU lucky draw: who is eligible, how the pool is locked, how randomness is generated, and how mistakes are corrected.",
 };
 
-export const dynamic = "force-static";
+// Not `force-static` any more: the page now checks the site section
+// switches in the database before rendering. The rules content itself is
+// still a static data structure, so the only cost is one small query.
+export const dynamic = "force-dynamic";
 
 /**
  * The rules page.
@@ -112,7 +117,12 @@ const allowed = [
   "Reporting a mistake in the result — corrections are recorded, not hidden",
 ];
 
-export default function RulesPage() {
+export default async function RulesPage() {
+  const site = await getSiteSettings();
+  if (!site.siteOpen || !site.rulesOpen) {
+    return <SectionClosed sectionLabel="The rules" note={site.closedNote} />;
+  }
+
   return (
     <>
       <section className="bg-canopy relative overflow-hidden py-12 sm:py-16">

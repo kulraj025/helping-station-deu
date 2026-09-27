@@ -166,6 +166,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "report.exported": "Data exported",
   "auth.admin_login": "Organiser signed in",
   "auth.admin_bootstrapped": "First organiser account created",
+  "admin.site_settings_changed": "Site section switches changed",
+  "admin.user_deleted": "Participant account deleted",
+  "admin.all_participants_deleted": "All participant accounts deleted",
   "event.qr_downloaded": "QR code downloaded",
   "event.poster_downloaded": "Poster downloaded",
 };
