@@ -3,24 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AlertCircle, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound } from "lucide-react";
+import { AlertCircle, KeyRound, Leaf, Lock, LogIn, ShieldCheck, UserRound, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, FormAlert, Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/feedback";
-import { cn } from "@/lib/utils";
+import { cn, isGoogleEnabled } from "@/lib/utils";
 
 type Mode = "student" | "organiser";
 
 export interface LoginFormProps {
-  /**
-   * Where to send the user once they are signed in, and why they were sent here.
-   *
-   * Passed in from the server page rather than read with `useSearchParams()`:
-   * that hook forces the form behind a `<Suspense>` boundary, and the boundary
-   * then arrives as a hidden deferred container that React never reveals — the
-   * form renders in the DOM but is invisible and unreachable. The server
-   * already awaits `searchParams`, so there is nothing to gain from the hook.
-   */
   callbackUrl?: string;
   reason?: string;
 }
@@ -33,6 +24,7 @@ const messages: Record<string, string> = {
 
 export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) {
   const router = useRouter();
+  const googleEnabled = isGoogleEnabled();
 
   const [mode, setMode] = useState<Mode>("student");
   const [useClaimCode, setUseClaimCode] = useState(false);
@@ -60,9 +52,14 @@ export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) 
         setError(messages[result.error] ?? "Sign-in failed. Please try again.");
         return;
       }
-      // The session cookie is set; refresh so server components see it.
       router.replace(mode === "organiser" && callbackUrl === "/account" ? "/admin" : callbackUrl);
       router.refresh();
+    });
+  }
+
+  function handleGoogleSignIn() {
+    startTransition(async () => {
+      await signIn("google", { callbackUrl: mode === "organiser" ? "/admin" : callbackUrl });
     });
   }
 
@@ -79,15 +76,28 @@ export function LoginForm({ callbackUrl = "/account", reason }: LoginFormProps) 
           </p>
         </div>
 
+        {/* Google Sign-In Button */}
+        {googleEnabled && mode === "student" && (
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={pending}
+            className="mt-6 w-full flex items-center justify-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-soft transition hover:bg-slate-50 hover:border-leaf-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Chrome className="h-4 w-4" aria-hidden="true" />
+            <span>Continue with Google (@deu.ac.kr)</span>
+          </button>
+        )}
+
         {reason === "auth" ? (
-          <FormAlert tone="info" className="mt-6" title="Sign in required">
+          <div className="mt-6 rounded-full bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="alert">
             Please sign in to continue to that page.
-          </FormAlert>
+          </div>
         ) : null}
         {error ? (
-          <FormAlert tone="error" className="mt-6" title="Could not sign you in">
+          <div className="mt-6 rounded-full bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
             {error}
-          </FormAlert>
+          </div>
         ) : null}
 
         {/* mode tabs */}

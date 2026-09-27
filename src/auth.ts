@@ -1,5 +1,6 @@
 import "server-only";
 import NextAuth, { type DefaultSession } from "next-auth";
+import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -164,19 +165,85 @@ const studentProvider = Credentials({
   },
 });
 
+const googleProvider = Google({
+  clientId: env.googleClientId,
+  clientSecret: env.googleClientSecret,
+  authorization: {
+    params: {
+      scope: "openid email profile",
+      prompt: "consent",
+      access_type: "offline",
+      response_type: "code",
+    },
+  },
+  profile(profile) {
+    // Only allow @deu.ac.kr emails
+    if (!profile.email?.endsWith("@deu.ac.kr")) {
+      throw new Error("Only @deu.ac.kr emails are allowed");
+    }
+    return {
+      id: profile.sub,
+      email: profile.email,
+      name: profile.name,
+      image: profile.picture,
+    };
+  },
+});
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: env.authSecret,
   trustHost: env.authTrustHost,
   session: { strategy: "jwt", maxAge: env.authMaxAge },
   pages: { signIn: "/login", error: "/login" },
-  providers: [adminProvider, studentProvider],
+  providers: [
+    adminProvider,
+    studentProvider,
+    ...(env.googleClientId && env.googleClientSecret ? [googleProvider] : []),
+  ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google") {
+        // Check if user exists in our DB
+        const existingUser = await prisma.user.findUnique({ where: { email: user.email! } });
+        if (!existingUser) {
+          // Create student user from Google profile
+          const email = user.email!;
+          const name = user.name || email.split("@")[0];
+          const studentId = `GOOGLE_${user.id.slice(0, 8)}`;
+          const department = "Unknown"; // Will need to be updated by admin
+          
+          await prisma.user.create({
+            data: {
+              id: `google_${user.id}`,
+              email,
+              name,
+              studentId,
+              department,
+              role: "STUDENT",
+              passwordHash: null, // No password for OAuth users
+              isActive: true,
+              isDemo: false,
+            },
+          });
+        } else {
+          // Update last login
+          await prisma.user.update({
+            where: { email: user.email! },
+            data: { lastLoginAt: new Date() },
+          });
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
         token.userId = user.id;
         token.role = user.role ?? "STUDENT";
         token.department = user.department;
         token.studentId = user.studentId;
+      }
+      if (account?.provider === "google") {
+        token.provider = "google";
       }
       return token;
     },

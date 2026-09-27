@@ -83,6 +83,10 @@ export const env = {
   notificationsEnabled: bool(process.env.NOTIFICATIONS_ENABLED, false),
   notificationFromEmail: process.env.NOTIFICATION_FROM_EMAIL ?? "no-reply@helpingstation.deu",
 
+  // Google OAuth
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+
   warnings,
 } as const;
 
@@ -92,3 +96,5 @@ export const isTurnstileEnabled = () =>
   env.turnstileSiteKey.length > 0 && env.turnstileSecretKey.length > 0;
 export const isDistributedRateLimit = () =>
   env.upstashRestUrl.length > 0 && env.upstashRestToken.length > 0;
+export const isGoogleEnabled = () =>
+  env.googleClientId.length > 0 && env.googleClientSecret.length > 0;
