@@ -99,8 +99,18 @@ export async function registerStudent(
   const now = new Date();
 
   return await prisma.$transaction(async (tx) => {
-    // Serialise entry-number allocation per event.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${event.id}))`;
+    // Serialise entry-number allocation per event, so two people registering at
+    // the same moment cannot be handed the same number.
+    //
+    // `$executeRaw`, not `$queryRaw`: `pg_advisory_xact_lock` returns `void`,
+    // and `$queryRaw` tries to deserialise every column into a JS value. It
+    // cannot represent `void`, so it threw
+    //   "Failed to deserialize column of type 'void'"
+    // and every single registration died with HTTP 500. The lock is a
+    // side effect, not a result set, so `$executeRaw` is both the correct and
+    // the working choice. The lock is still released at the end of the
+    // transaction — it is the `xact` variant, which is transaction-scoped.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${event.id}))`;
 
     const existingUser = await tx.user.findUnique({ where: { email: input.email } });
     if (existingUser) {

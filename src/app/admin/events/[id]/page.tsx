@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { getEventById } from "@/server/services/event-service";
 import { withEvent } from "@/server/admin/scope";
 import { PageBody, PageHeader, Panel } from "@/components/admin/page-parts";
-import { EventForm, toLocalInputValue, type EventFormValues } from "@/components/admin/event-form";
+import { EventForm, type EventFormValues } from "@/components/admin/event-form";
+import { toDateTimeLocalValue } from "@/lib/datetime";
 import { StatusChanger } from "@/components/admin/status-changer";
 import { EventStatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -51,9 +52,9 @@ export default async function EditEventPage({
     description: event.description,
     locationName: event.locationName,
     locationAddress: event.locationAddress ?? "",
-    startAt: toLocalInputValue(event.startAt),
-    endAt: toLocalInputValue(event.endAt),
-    registrationDeadline: toLocalInputValue(event.registrationDeadline),
+    startAt: toDateTimeLocalValue(event.startAt),
+    endAt: toDateTimeLocalValue(event.endAt),
+    registrationDeadline: toDateTimeLocalValue(event.registrationDeadline),
     capacity: event.capacity ? String(event.capacity) : "",
     organizerName: event.organizerName,
     organizerDepartment: event.organizerDepartment ?? "",

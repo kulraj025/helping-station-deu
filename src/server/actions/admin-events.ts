@@ -8,6 +8,7 @@ import { eventSchema, prizeSchema, type EventInput } from "@/lib/validation";
 import { eventSettingsSchema, parseEventSettings, type EventSettings } from "@/lib/event-settings";
 import { isEventStatus } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
+import { dateTimeLocalToIso } from "@/lib/datetime";
 import { AUDIT_ACTIONS, writeAudit } from "@/server/services/audit";
 import { getClientIpHash } from "@/lib/http";
 import { withEvent } from "@/server/admin/scope";
@@ -56,10 +57,13 @@ function settingsFrom(parsed: EventInput): EventSettings {
 const bool = (formData: FormData, key: string) => formData.get(key) === "on";
 const text = (formData: FormData, key: string) => String(formData.get(key) ?? "");
 
-/** `datetime-local` values arrive without a timezone; treat them as UTC. */
+/**
+ * `datetime-local` values arrive without a timezone, so they are read as the
+ * server's wall clock — the same interpretation `toDateTimeLocalValue` writes
+ * them back with, which is what makes the round-trip lossless.
+ */
 function toIso(value: string): string {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+  return dateTimeLocalToIso(value);
 }
 
 function collectEventForm(formData: FormData) {

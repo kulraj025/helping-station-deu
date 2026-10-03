@@ -39,6 +39,17 @@ const STUDENT_PASSWORD = process.env.SEED_STUDENT_PASSWORD ?? "ChangeMe!2024";
 const HOURS = 3_600_000;
 const DAYS = 24 * HOURS;
 
+/**
+ * Snap to the next full hour, so a seeded event starts and ends on a tidy time
+ * rather than whenever the seed happened to run.
+ */
+function roundToHour(date: Date): Date {
+  const rounded = new Date(date);
+  rounded.setMinutes(0, 0, 0);
+  if (rounded.getTime() <= date.getTime()) rounded.setHours(rounded.getHours() + 1);
+  return rounded;
+}
+
 const FIRST_NAMES = [
   "Minseok", "Jiwoo", "Hyerin", "Seojun", "Hayoung", "Jiho", "Suyeon", "Doyun", "Yeon", "Taemin",
   "Sooah", "Junseo", "Hana", "Doyun", "Rina", "Kai", "Nara", "Sion", "Ayu", "Minjae",
@@ -118,16 +129,20 @@ async function main() {
 
   // --- live demo event -----------------------------------------------------
   const slug = "helping-station-deu-vol-1";
+  // Only used when the event is created. Deliberately relative to "now" so a
+  // freshly seeded database is always bookable, and deliberately NOT part of the
+  // `update` below: this event is the one the organiser is expected to drive
+  // from the admin area, so re-seeding must never move a date they set by hand.
   const liveEventDates = {
-    startAt: new Date("2026-09-28T09:00:00"),
-    endAt: new Date("2026-09-28T17:00:00"),
-    registrationDeadline: new Date("2026-09-28T00:00:00"),
+    startAt: roundToHour(new Date(Date.now() + 30 * DAYS)),
+    endAt: roundToHour(new Date(Date.now() + 30 * DAYS + 8 * HOURS)),
+    registrationDeadline: roundToHour(new Date(Date.now() + 23 * DAYS)),
   };
   const liveEvent = await prisma.event.upsert({
     where: { slug },
-    // Dates are included in the update so re-seeding a database that already
-    // has this event actually moves it to the new date.
-    update: liveEventDates,
+    // Empty on purpose — see above. Only `isDemo` is reconciled so a database
+    // seeded before DEMO_MODE was enabled still gets flagged correctly.
+    update: { isDemo: DEMO_MODE },
     create: {
       slug,
       name: "Helping Station DEU",
@@ -162,46 +177,76 @@ async function main() {
     });
   }
   console.log(`  ✓ Live event:          ${liveEvent.name} (${liveEvent.status})`);
+  console.log(
+    `    dates:               ${liveEvent.startAt.toISOString()} → ${liveEvent.endAt.toISOString()}` +
+      `  (registration closes ${liveEvent.registrationDeadline.toISOString()})`,
+  );
+  console.log(
+    "    note:                dates are set only on creation. Change them any time in the admin area.",
+  );
 
   // --- participants for the live event -------------------------------------
-  const existingLive = await prisma.registration.count({ where: { eventId: liveEvent.id } });
-  if (existingLive === 0) {
-    const count = 27;
-    for (let index = 0; index < count; index += 1) {
-      const data = person(index);
-      const participated = index < 22;
-      const eligible = participated && index % 9 !== 0;
-      const demoUser =
-        index === 0
-          ? demoStudent
-          : await prisma.user.upsert({
-              where: { email: data.email },
-              update: {},
-              create: { ...data, role: "STUDENT", isDemo: true, passwordHash: null },
-            });
-      await prisma.registration.create({
-        data: {
-          eventId: liveEvent.id,
-          userId: demoUser.id,
-          entryNumber: `HS-DEMO-${String(index + 1).padStart(3, "0")}`,
-          registrationStatus: "CONFIRMED",
-          participationStatus: participated ? "PARTICIPATED" : index % 3 === 0 ? "NO_SHOW" : "REGISTERED",
-          drawEligibility: eligible ? "ELIGIBLE" : participated ? "INELIGIBLE" : "PENDING",
-          eligibilityReason: eligible ? null : participated ? "Joined after the main clean-up activity" : null,
-          volunteerRole: VOLUNTEER_ROLES[index % VOLUNTEER_ROLES.length] as string,
-          verifiedAt: participated ? new Date(Date.now() - HOURS) : null,
-          verifiedById: participated ? admin.id : null,
-          rulesAcceptedAt: new Date(Date.now() - 3 * DAYS),
-          dataConsentAt: new Date(Date.now() - 3 * DAYS),
-          drawConsentAt: new Date(Date.now() - 3 * DAYS),
-          contactConsentAt: new Date(Date.now() - 3 * DAYS),
-          publicDisplayConsent: index % 2 === 0,
-          isDemo: true,
-        },
-      });
-    }
-    console.log(`  ✓ Registrations:      ${count} demo participants`);
+  // Seeded unconditionally and keyed on `eventId_entryNumber`.
+  //
+  // This used to sit behind `if (existingLive === 0)`, which made the seed
+  // unrepairable: any database already holding a single registration (a
+  // half-finished run, or the lone demo-student row written by an earlier
+  // version of this file) skipped the block forever after. The live event ended
+  // up with exactly one participant called "Demo Student" while the completed
+  // event carried 31 properly named students, so the Participants page — which
+  // opens on the live event — looked empty and anonymous.
+  //
+  // Upserting on the unique key makes re-seeding converge on the full set, and
+  // each participant is stored under the name they registered with.
+  const liveParticipantCount = 27;
+  for (let index = 0; index < liveParticipantCount; index += 1) {
+    const data = person(index);
+    const participated = index < 22;
+    const eligible = participated && index % 9 !== 0;
+    const demoUser =
+      index === 0
+        ? demoStudent
+        : await prisma.user.upsert({
+            where: { email: data.email },
+            // Refresh the profile as well, so a corrected name in the seed
+            // reaches the participants list instead of being hidden behind a
+            // stale row.
+            update: {
+              name: data.name,
+              department: data.department,
+              studentId: data.studentId,
+              phone: data.phone,
+            },
+            create: { ...data, role: "STUDENT", isDemo: true, passwordHash: null },
+          });
+    const entryNumber = `HS-DEMO-${String(index + 1).padStart(3, "0")}`;
+    const statuses = {
+      participationStatus: participated ? "PARTICIPATED" : index % 3 === 0 ? "NO_SHOW" : "REGISTERED",
+      drawEligibility: eligible ? "ELIGIBLE" : participated ? "INELIGIBLE" : "PENDING",
+      eligibilityReason: eligible ? null : participated ? "Joined after the main clean-up activity" : null,
+      volunteerRole: VOLUNTEER_ROLES[index % VOLUNTEER_ROLES.length] as string,
+      verifiedAt: participated ? new Date(Date.now() - HOURS) : null,
+      verifiedById: participated ? admin.id : null,
+    };
+    await prisma.registration.upsert({
+      where: { eventId_entryNumber: { eventId: liveEvent.id, entryNumber } },
+      update: { userId: demoUser.id, ...statuses },
+      create: {
+        eventId: liveEvent.id,
+        userId: demoUser.id,
+        entryNumber,
+        registrationStatus: "CONFIRMED",
+        ...statuses,
+        rulesAcceptedAt: new Date(Date.now() - 3 * DAYS),
+        dataConsentAt: new Date(Date.now() - 3 * DAYS),
+        drawConsentAt: new Date(Date.now() - 3 * DAYS),
+        contactConsentAt: new Date(Date.now() - 3 * DAYS),
+        publicDisplayConsent: index % 2 === 0,
+        isDemo: true,
+      },
+    });
   }
+  console.log(`  ✓ Registrations:      ${liveParticipantCount} demo participants on the live event`);
 
   // --- completed past event with a real draw result -----------------------
   const pastSlug = "helping-station-deu-vol-0";

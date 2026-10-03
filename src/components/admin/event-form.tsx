@@ -20,7 +20,7 @@ export interface EventFormValues {
   description: string;
   locationName: string;
   locationAddress: string;
-  /** `datetime-local` strings, already in the user's local time. */
+  /** `datetime-local` strings (`YYYY-MM-DDTHH:mm`), server-local wall clock. */
   startAt: string;
   endAt: string;
   registrationDeadline: string;
@@ -44,15 +44,6 @@ export interface EventFormValues {
     winnerContactMethod: string;
     complianceNote: string;
   };
-}
-
-/** Date → `datetime-local` value in the browser's timezone. */
-export function toLocalInputValue(value: string | Date | null | undefined): string {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 const STATUS_LABELS: Record<string, string> = {

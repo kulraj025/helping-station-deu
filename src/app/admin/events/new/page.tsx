@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { PageBody, PageHeader, Panel } from "@/components/admin/page-parts";
 import { EventForm, type EventFormValues } from "@/components/admin/event-form";
+import { toDateTimeLocalValue } from "@/lib/datetime";
 import { env } from "@/lib/env";
 
 export const metadata: Metadata = { title: "New event" };
@@ -23,9 +24,9 @@ function defaultValues(): EventFormValues {
     description: "",
     locationName: "",
     locationAddress: "",
-    startAt: start.toISOString(),
-    endAt: end.toISOString(),
-    registrationDeadline: deadline.toISOString(),
+    startAt: toDateTimeLocalValue(start),
+    endAt: toDateTimeLocalValue(end),
+    registrationDeadline: toDateTimeLocalValue(deadline),
     capacity: "",
     organizerName: "",
     organizerDepartment: "",
