@@ -25,16 +25,42 @@ export interface LoginFormProps {
   allowedDomain?: string;
   /** Error code handed over from the `?error=` query string. */
   initialError?: string;
+  /**
+   * Which tab to open on.
+   *
+   * The student tab is the common case, but it must not be the *only*
+   * default. Signing in with an organiser e-mail on the student tab submits to
+   * the student provider, which rejects the account because its role is ADMIN,
+   * and every rejection comes back as the same `CredentialsSignin`. A correct
+   * organiser login then looks exactly like a wrong password. Letting the
+   * server pick the tab keeps the `/admin` bounce path usable.
+   */
+  mode?: Mode;
 }
 
 const messages: Record<string, string> = {
-  CredentialsSignin: "That e-mail address, password or claim code did not match our records.",
   AccessDenied: "You do not have permission to open that page.",
   rate_limited: "Too many attempts. Wait a few minutes and try again.",
   OAuthEmailMissing:
     "That account did not share an e-mail address. Grant e-mail access and try again.",
   OAuthDomainNotAllowed: "That e-mail domain cannot sign in here.",
 };
+
+/**
+ * Copy for a rejected set of credentials.
+ *
+ * Auth.js returns one opaque `CredentialsSignin` for an unknown e-mail, a
+ * wrong password, an account of the other type and a tripped rate limit — that
+ * collapse is deliberate and must not be undone, or the form becomes a probe
+ * for which e-mail addresses exist. So this does not claim to know which check
+ * failed; it names the likely cause and the way out, which is what was missing
+ * when a valid organiser login reported "did not match our records".
+ */
+function rejectedMessage(mode: Mode): string {
+  return mode === "organiser"
+    ? "That organiser e-mail and password did not match. Check the address, or use the Student tab if you are signing in with your university e-mail. After several failed attempts this form pauses for a few minutes."
+    : "That university e-mail and password did not match. Check the address, or use the Organiser tab if you are signing in as the event organiser. After several failed attempts this form pauses for a few minutes.";
+}
 
 /** The domain notice varies with configuration, so it is built per-render. */
 function domainNotAllowedMessage(allowedDomain: string) {
@@ -49,10 +75,11 @@ export function LoginForm({
   googleEnabled = false,
   allowedDomain = "",
   initialError,
+  mode: initialMode,
 }: LoginFormProps) {
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>("student");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "student");
   const [useClaimCode, setUseClaimCode] = useState(false);
   const [error, setError] = useState<string | null>(
     initialError === "OAuthDomainNotAllowed"
@@ -85,7 +112,11 @@ export function LoginForm({
     startTransition(async () => {
       const result = await signIn(provider, { ...payload, redirect: false });
       if (result?.error) {
-        setError(messages[result.error] ?? "Sign-in failed. Please try again.");
+        setError(
+          result.error === "CredentialsSignin"
+            ? rejectedMessage(mode)
+            : (messages[result.error] ?? "Sign-in failed. Please try again."),
+        );
         return;
       }
       router.replace(mode === "organiser" && callbackUrl === "/account" ? "/admin" : callbackUrl);

@@ -39,7 +39,11 @@ export async function isAuthenticated(): Promise<boolean> {
 export async function requireAdmin(returnTo = "/admin"): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) {
-    redirect(`/login?callbackUrl=${encodeURIComponent(returnTo)}&reason=auth`);
+    // `mode=organiser` opens the login form on the tab that can actually
+    // authenticate an organiser. Without it the form defaults to Student, the
+    // organiser's valid credentials are rejected by the student provider, and
+    // the failure is reported as if the password were wrong.
+    redirect(`/login?callbackUrl=${encodeURIComponent(returnTo)}&reason=auth&mode=organiser`);
   }
   if (user.role !== "ADMIN") {
     redirect("/account?error=forbidden");

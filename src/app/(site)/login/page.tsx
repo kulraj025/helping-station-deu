@@ -31,6 +31,10 @@ export default async function LoginPage({
   const reason = typeof params.reason === "string" ? params.reason : undefined;
   // NextAuth bounces failed OAuth attempts back here with `?error=<code>`.
   const oauthError = typeof params.error === "string" ? params.error : undefined;
+  // Which tab to open on. Validated against the two known values so an
+  // arbitrary query string cannot become a prop the form has to defend against.
+  const rawMode = typeof params.mode === "string" ? params.mode : undefined;
+  const mode = rawMode === "organiser" || rawMode === "student" ? rawMode : undefined;
 
   /**
    * Resolved here, on the server, and handed to the form as a plain boolean.
@@ -55,6 +59,7 @@ export default async function LoginPage({
             googleEnabled={googleEnabled}
             allowedDomain={env.googleAllowedDomain}
             initialError={oauthError}
+            mode={mode}
           />
         </Reveal>
         {env.demoMode ? (

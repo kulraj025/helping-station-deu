@@ -78,16 +78,25 @@ const adminProvider = Credentials({
     }
 
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-    if (!user || !user.isActive) {
+    // Existence, role and active state are checked separately so the audit log
+    // records which one rejected the attempt. Collapsing them into one
+    // `unknown_user` made an organiser account submitted on this form
+    // indistinguishable from an address that was never registered — which is
+    // what left the login bug undiagnosed.
+    if (!user) {
       await recordAttempt(parsed.data.email, false, "unknown_user", ipHash);
-      return null;
-    }
-    if (!user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
-      await recordAttempt(parsed.data.email, false, "bad_password", ipHash);
       return null;
     }
     if (user.role !== "ADMIN") {
       await recordAttempt(parsed.data.email, false, "not_admin", ipHash);
+      return null;
+    }
+    if (!user.isActive) {
+      await recordAttempt(parsed.data.email, false, "inactive", ipHash);
+      return null;
+    }
+    if (!user.passwordHash || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+      await recordAttempt(parsed.data.email, false, "bad_password", ipHash);
       return null;
     }
 
@@ -136,8 +145,19 @@ const studentProvider = Credentials({
     }
 
     const user = await prisma.user.findUnique({ where: { email: parsed.data.identifier } });
-    if (!user || !user.isActive || user.role !== "STUDENT") {
+    // Split for the same reason as the organiser provider above: an organiser
+    // account typed into this form is the common case behind a confusing
+    // "did not match our records", and `not_student` is what proves it.
+    if (!user) {
       await recordAttempt(parsed.data.identifier, false, "unknown_user", ipHash);
+      return null;
+    }
+    if (user.role !== "STUDENT") {
+      await recordAttempt(parsed.data.identifier, false, "not_student", ipHash);
+      return null;
+    }
+    if (!user.isActive) {
+      await recordAttempt(parsed.data.identifier, false, "inactive", ipHash);
       return null;
     }
 

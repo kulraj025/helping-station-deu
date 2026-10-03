@@ -12,18 +12,26 @@ import { FlaskConical, Copy, Check } from "lucide-react";
 export function DemoCredentials() {
   const [copied, setCopied] = useState<string | null>(null);
 
-  const accounts = [
+  // Named the tab each account needs. The two forms go to different Auth.js
+  // providers, and each rejects the other's account type, so an organiser
+  // e-mail typed into the student form looks like a wrong password.
+  const accounts: Array<{
+    role: "Organiser" | "Student";
+    email: string;
+    password: string;
+    note: string;
+  }> = [
     {
       role: "Organiser",
       email: "admin@helpingstation.deu",
       password: "ChangeMe!2024",
-      note: "Full admin dashboard: participants, eligibility, draw console, audit log.",
+      note: "Full admin dashboard: participants, eligibility, draw console, audit log. Use the Organiser tab on the sign-in form.",
     },
     {
       role: "Student",
       email: "student@deu.ac.kr",
       password: "ChangeMe!2024",
-      note: "A single participant's view of their own registration.",
+      note: "A single participant's view of their own registration. Use the Student tab.",
     },
   ];
 
